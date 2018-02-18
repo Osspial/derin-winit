@@ -167,13 +167,14 @@ impl EventsLoop {
                 Ok(e) => e,
                 Err(_) => return
             };
-            let is_resize = match event {
+            let is_blocking = match event {
                 Event::WindowEvent{ event: WindowEvent::Resized(..), .. } => true,
+                Event::WindowEvent{ event: WindowEvent::CursorMoved{..}, .. } => true,
                 _ => false
             };
 
             callback(event);
-            if is_resize {
+            if is_blocking {
                 let (ref mutex, ref cvar) = *self.win32_block_loop;
                 let mut block_thread = mutex.lock().unwrap();
                 *block_thread = false;
@@ -190,13 +191,14 @@ impl EventsLoop {
                 Ok(e) => e,
                 Err(_) => return
             };
-            let is_resize = match event {
+            let is_blocking = match event {
                 Event::WindowEvent{ event: WindowEvent::Resized(..), .. } => true,
+                Event::WindowEvent{ event: WindowEvent::CursorMoved{..}, .. } => true,
                 _ => false
             };
 
             let flow = callback(event);
-            if is_resize {
+            if is_blocking {
                 let (ref mutex, ref cvar) = *self.win32_block_loop;
                 let mut block_thread = mutex.lock().unwrap();
                 *block_thread = false;
@@ -435,42 +437,56 @@ pub unsafe extern "system" fn callback(window: HWND, msg: UINT,
 
         winuser::WM_MOUSEMOVE => {
             use events::WindowEvent::{CursorEntered, CursorMoved};
-            let mouse_outside_window = CONTEXT_STASH.with(|context_stash| {
+            CONTEXT_STASH.with(|context_stash| {
                 let mut context_stash = context_stash.borrow_mut();
-                if let Some(context_stash) = context_stash.as_mut() {
-                    if let Some(w) = context_stash.windows.get_mut(&window) {
-                        let mut w = w.lock().unwrap();
-                        if !w.mouse_in_window {
-                            w.mouse_in_window = true;
-                            return true;
-                        }
-                    }
+                let cstash = context_stash.as_mut().unwrap();
+
+                let mouse_outside_window = if let Some(w) = cstash.windows.get_mut(&window) {
+                    let mut w = w.lock().unwrap();
+                    if !w.mouse_in_window {
+                        w.mouse_in_window = true;
+                        true
+                    } else { false }
+                } else { false };
+
+                if mouse_outside_window {
+                    cstash.sender.send(Event::WindowEvent {
+                        window_id: SuperWindowId(WindowId(window)),
+                        event: CursorEntered { device_id: DEVICE_ID },
+                    }).ok();
+
+                    // Calling TrackMouseEvent in order to receive mouse leave events.
+                    winuser::TrackMouseEvent(&mut winuser::TRACKMOUSEEVENT {
+                        cbSize: mem::size_of::<winuser::TRACKMOUSEEVENT>() as DWORD,
+                        dwFlags: winuser::TME_LEAVE,
+                        hwndTrack: window,
+                        dwHoverTime: winuser::HOVER_DEFAULT,
+                    });
                 }
 
-                false
-            });
+                let x = windowsx::GET_X_LPARAM(lparam) as f64;
+                let y = windowsx::GET_Y_LPARAM(lparam) as f64;
 
-            if mouse_outside_window {
-                send_event(Event::WindowEvent {
+                let move_event = Event::WindowEvent {
                     window_id: SuperWindowId(WindowId(window)),
-                    event: CursorEntered { device_id: DEVICE_ID },
-                });
+                    event: CursorMoved { device_id: DEVICE_ID, position: (x, y), modifiers: event::get_key_mods() },
+                };
 
-                // Calling TrackMouseEvent in order to receive mouse leave events.
-                winuser::TrackMouseEvent(&mut winuser::TRACKMOUSEEVENT {
-                    cbSize: mem::size_of::<winuser::TRACKMOUSEEVENT>() as DWORD,
-                    dwFlags: winuser::TME_LEAVE,
-                    hwndTrack: window,
-                    dwHoverTime: winuser::HOVER_DEFAULT,
-                });
-            }
+                if cstash.windows.get(&window).is_some() {
+                    let (ref mutex, ref cvar) = *cstash.win32_block_loop;
+                    let mut block_thread = mutex.lock().unwrap();
+                    *block_thread = true;
 
-            let x = windowsx::GET_X_LPARAM(lparam) as f64;
-            let y = windowsx::GET_Y_LPARAM(lparam) as f64;
+                    // The event needs to be sent after the lock to ensure that `notify_all` is
+                    // called after `wait`.
+                    cstash.sender.send(move_event).ok();
 
-            send_event(Event::WindowEvent {
-                window_id: SuperWindowId(WindowId(window)),
-                event: CursorMoved { device_id: DEVICE_ID, position: (x, y), modifiers: event::get_key_mods() },
+                    while *block_thread {
+                        block_thread = cvar.wait(block_thread).unwrap();
+                    }
+                } else {
+                    cstash.sender.send(move_event).ok();
+                }
             });
 
             0
