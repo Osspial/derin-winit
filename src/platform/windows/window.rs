@@ -80,10 +80,10 @@ impl Window {
 
         let proxy = events_loop.create_proxy();
 
-        events_loop.execute_in_thread(move |inserter| {
+        events_loop.execute_in_thread(move || {
             // We dispatch an `init` function because of code style.
             // First person to remove the need for cloning here gets a cookie!
-            let win = unsafe { init(w_attr.clone(), pl_attr.clone(), inserter, proxy.clone()) };
+            let win = unsafe { init(w_attr.clone(), pl_attr.clone(), proxy.clone()) };
             let _ = tx.send(win);
         });
 
@@ -384,7 +384,7 @@ impl Window {
         unsafe {
             // And because ShowWindow will resize the window
             // We call it in the main thread
-            self.events_loop_proxy.execute_in_thread(move |_| {
+            self.events_loop_proxy.execute_in_thread(move || {
                 winuser::ShowWindow(
                     window.0,
                     if maximized {
@@ -446,7 +446,7 @@ impl Window {
         // On restore, resize to the previous saved rect size.
         // And because SetWindowPos will resize the window
         // We call it in the main thread
-        self.events_loop_proxy.execute_in_thread(move |_| {
+        self.events_loop_proxy.execute_in_thread(move || {
             winuser::SetWindowLongW(window.0, winuser::GWL_STYLE, style);
             winuser::SetWindowLongW(window.0, winuser::GWL_EXSTYLE, ex_style);
 
@@ -486,7 +486,7 @@ impl Window {
 
                     let (style, ex_style) = self.set_fullscreen_style();
 
-                    self.events_loop_proxy.execute_in_thread(move |_| {
+                    self.events_loop_proxy.execute_in_thread(move || {
                         winuser::SetWindowLongW(
                             window.0,
                             winuser::GWL_STYLE,
@@ -588,7 +588,7 @@ impl Window {
 
                 let window = self.window.clone();
 
-                self.events_loop_proxy.execute_in_thread(move |_| {
+                self.events_loop_proxy.execute_in_thread(move || {
                     winuser::SetWindowLongW(window.0, winuser::GWL_STYLE, style);
                     winuser::SetWindowLongW(window.0, winuser::GWL_EXSTYLE, ex_style);
                     winuser::AdjustWindowRectEx(&mut rect, style as _, 0, ex_style as _);
@@ -678,7 +678,6 @@ pub unsafe fn adjust_size(
 unsafe fn init(
     mut window: WindowAttributes,
     mut pl_attribs: PlatformSpecificWindowBuilderAttributes,
-    inserter: events_loop::Inserter,
     events_loop_proxy: events_loop::EventsLoopProxy,
 ) -> Result<Window, CreationError> {
     let title = OsStr::new(&window.title)
@@ -716,8 +715,12 @@ unsafe fn init(
 
     // building a RECT object with coordinates
     let mut rect = RECT {
-        left: 0, right: window.dimensions.unwrap_or((1024, 768)).0 as LONG,
-        top: 0, bottom: window.dimensions.unwrap_or((1024, 768)).1 as LONG,
+        left: 0, right: window.dimensions.unwrap_or((1024, 768)).0
+            .max(window.min_dimensions.map(|m| m.0).unwrap_or(0))
+            .min(window.max_dimensions.map(|m| m.0).unwrap_or(u32::max_value())) as LONG,
+        top: 0, bottom: window.dimensions.unwrap_or((1024, 768)).1
+            .max(window.min_dimensions.map(|m| m.1).unwrap_or(0))
+            .min(window.max_dimensions.map(|m| m.1).unwrap_or(u32::max_value())) as LONG,
     };
 
     // computing the style and extended style of the window
@@ -827,6 +830,8 @@ unsafe fn init(
         dwmapi::DwmEnableBlurBehindWindow(real_window.0, &bb);
     }
 
+    events_loop_proxy.subclass_window(real_window.0, window_state.clone());
+
     let win = Window {
         window: real_window,
         window_state: window_state,
@@ -840,8 +845,6 @@ unsafe fn init(
         win.set_fullscreen(fullscreen);
         force_window_active(win.window.0);
     }
-
-    inserter.insert(win.window.0, win.window_state.clone());
 
     Ok(win)
 }
@@ -867,7 +870,7 @@ unsafe fn register_window_class(
     let class = winuser::WNDCLASSEXW {
         cbSize: mem::size_of::<winuser::WNDCLASSEXW>() as UINT,
         style: winuser::CS_HREDRAW | winuser::CS_VREDRAW | winuser::CS_OWNDC,
-        lpfnWndProc: Some(events_loop::callback),
+        lpfnWndProc: Some(winuser::DefWindowProcW),
         cbClsExtra: 0,
         cbWndExtra: 0,
         hInstance: libloaderapi::GetModuleHandleW(ptr::null()),

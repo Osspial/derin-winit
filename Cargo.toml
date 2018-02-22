@@ -48,6 +48,7 @@ features = [
     "combaseapi",
     "objbase",
     "unknwnbase",
+    "commctrl",
 ]
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"))'.dependencies]
