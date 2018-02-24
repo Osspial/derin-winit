@@ -349,20 +349,39 @@ unsafe fn init(window: WindowAttributes, pl_attribs: PlatformSpecificWindowBuild
     };
 
     // computing the style and extended style of the window
-    let (ex_style, style) = if fullscreen || !window.decorations {
-        (winuser::WS_EX_APPWINDOW,
-            //winapi::WS_POPUP is incompatible with winapi::WS_CHILD
-            if pl_attribs.parent.is_some() {
-                winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN
-            }
-            else {
-                winuser::WS_POPUP | winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN
-            }
-        )
-    } else {
-        (winuser::WS_EX_APPWINDOW | winuser::WS_EX_WINDOWEDGE,
-            winuser::WS_OVERLAPPEDWINDOW | winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN)
+    let (mut ex_style, mut style) = (0, winuser::WS_EX_ACCEPTFILES);
+    // Popup windows don't appear on the taskbar.
+    ex_style |= match window.popup {
+        true => winuser::WS_EX_TOOLWINDOW,
+        false => winuser::WS_EX_APPWINDOW
     };
+    match fullscreen || !window.decorations {
+        true => {
+            style |= winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN;
+            // winapi::WS_POPUP is incompatible with winapi::WS_CHILD
+            if !pl_attribs.parent.is_some() {
+                style |= winuser::WS_POPUP;
+            }
+        }
+        false => {
+            ex_style |= winuser::WS_EX_WINDOWEDGE;
+            style |= winuser::WS_OVERLAPPEDWINDOW | winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN;
+        }
+    }
+    // let (ex_style, style) = if fullscreen || !window.decorations {
+    //     (winuser::WS_EX_APPWINDOW,
+    //         //winapi::WS_POPUP is incompatible with winapi::WS_CHILD
+    //         if pl_attribs.parent.is_some() {
+    //             winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN
+    //         }
+    //         else {
+    //             winuser::WS_POPUP | winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN
+    //         }
+    //     )
+    // } else {
+    //     (winuser::WS_EX_APPWINDOW | winuser::WS_EX_WINDOWEDGE,
+    //         winuser::WS_OVERLAPPEDWINDOW | winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN)
+    // };
 
     // adjusting the window coordinates using the style
     winuser::AdjustWindowRectEx(&mut rect, style, 0, ex_style);
@@ -391,7 +410,7 @@ unsafe fn init(window: WindowAttributes, pl_attribs: PlatformSpecificWindowBuild
             style |= winuser::WS_CHILD;
         }
 
-        let handle = winuser::CreateWindowExW(ex_style | winuser::WS_EX_ACCEPTFILES,
+        let handle = winuser::CreateWindowExW(ex_style,
             class_name.as_ptr(),
             title.as_ptr() as LPCWSTR,
             style | winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN,

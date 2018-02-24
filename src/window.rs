@@ -63,6 +63,11 @@ impl WindowBuilder {
         self
     }
 
+    pub fn is_popup(mut self, is_popup: bool) -> WindowBuilder {
+        self.window.popup = is_popup;
+        self
+    }
+
     /// Requests maximized mode.
     #[inline]
     pub fn with_maximized(mut self, maximized: bool) -> WindowBuilder {
