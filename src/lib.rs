@@ -421,6 +421,8 @@ pub struct WindowAttributes {
     /// The default is `false`.
     pub maximized: bool,
 
+    pub popup: bool,
+
     /// Whether the window should be immediately visible upon creation.
     ///
     /// The default is `true`.
@@ -452,6 +454,7 @@ impl Default for WindowAttributes {
             title: "winit window".to_owned(),
             maximized: false,
             fullscreen: None,
+            popup: false,
             visible: true,
             transparent: false,
             decorations: true,
