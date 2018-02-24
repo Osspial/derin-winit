@@ -582,6 +582,11 @@ impl Window2 {
         self.get_geometry().map(|(x, y, _, _, _)| (x, y))
     }
 
+    #[inline]
+    pub fn get_inner_position(&self) -> Option<(i32, i32)> {
+        self.get_geometry().map(|x, y, _, _, b| (x + b/2, y + b/2)) // TODO: same issue as get_outer_size
+    }
+
     pub fn set_position(&self, x: i32, y: i32) {
         unsafe { (self.x.display.xlib.XMoveWindow)(self.x.display.display, self.x.window, x as libc::c_int, y as libc::c_int); }
         self.x.display.check_errors().expect("Failed to call XMoveWindow");
