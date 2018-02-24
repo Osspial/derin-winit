@@ -153,6 +153,30 @@ impl Window {
         }
     }
 
+    /// See the docs in the crate root file.
+    #[inline]
+    pub fn set_min_dimensions(&self, dimensions: Option<(u32, u32)>) {
+        let mut window_state = self.window_state.lock().unwrap();
+        window_state.attributes.min_dimensions = dimensions;
+
+        // Make windows re-check the window size bounds.
+        if let Some(inner_size) = self.get_inner_size() {
+            self.set_inner_size(inner_size.0, inner_size.1);
+        }
+    }
+
+    /// See the docs in the crate root file.
+    #[inline]
+    pub fn set_max_dimensions(&self, dimensions: Option<(u32, u32)>) {
+        let mut window_state = self.window_state.lock().unwrap();
+        window_state.attributes.max_dimensions = dimensions;
+
+        // Make windows re-check the window size bounds.
+        if let Some(inner_size) = self.get_inner_size() {
+            self.set_inner_size(inner_size.0, inner_size.1);
+        }
+    }
+
     // TODO: remove
     pub fn platform_display(&self) -> *mut ::libc::c_void {
         panic!()        // Deprecated function ; we don't care anymore
@@ -370,7 +394,17 @@ unsafe fn init(window: WindowAttributes, pl_attribs: PlatformSpecificWindowBuild
     // creating the real window this time, by using the functions in `extra_functions`
     let real_window = {
         let (width, height) = if fullscreen || window.dimensions.is_some() {
-            (Some(rect.right - rect.left), Some(rect.bottom - rect.top))
+            let min_dimensions = window.min_dimensions
+                .map(|d| (d.0 as raw::c_int, d.1 as raw::c_int))
+                .unwrap_or((0, 0));
+            let max_dimensions = window.max_dimensions
+                .map(|d| (d.0 as raw::c_int, d.1 as raw::c_int))
+                .unwrap_or((raw::c_int::max_value(), raw::c_int::max_value()));
+
+            (
+                Some((rect.right - rect.left).min(max_dimensions.0).max(min_dimensions.0)),
+                Some((rect.bottom - rect.top).min(max_dimensions.1).max(min_dimensions.1))
+            )
         } else {
             (None, None)
         };
