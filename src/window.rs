@@ -70,6 +70,11 @@ impl WindowBuilder {
         self
     }
 
+    pub fn with_focusability(mut self, focusable: bool) -> WindowBuilder {
+        self.window.focusable = focusable;
+        self
+    }
+
     /// Sets whether the window will be initially hidden or visible.
     #[inline]
     pub fn with_visibility(mut self, visible: bool) -> WindowBuilder {
