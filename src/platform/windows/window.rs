@@ -69,8 +69,13 @@ impl Window {
 
     #[inline]
     pub fn show(&self) {
+        let current_state = self.window_state.lock().unwrap();
         unsafe {
-            winuser::ShowWindow(self.window.0, winuser::SW_SHOW);
+            let show_variant = match current_state.attributes.focusable {
+                true => winuser::SW_SHOW,
+                false => winuser::SW_SHOWNA
+            };
+            winuser::ShowWindow(self.window.0, show_variant);
         }
     }
 
@@ -399,8 +404,9 @@ unsafe fn init(window: WindowAttributes, pl_attribs: PlatformSpecificWindowBuild
         true => {
             style |= winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN;
             // winapi::WS_POPUP is incompatible with winapi::WS_CHILD
-            if !pl_attribs.parent.is_some() {
-                style |= winuser::WS_POPUP;
+            match pl_attribs.parent.is_some() {
+                true => style |= winuser::WS_CHILD,
+                false => style |= winuser::WS_POPUP
             }
         }
         false => {
@@ -422,6 +428,10 @@ unsafe fn init(window: WindowAttributes, pl_attribs: PlatformSpecificWindowBuild
     //     (winuser::WS_EX_APPWINDOW | winuser::WS_EX_WINDOWEDGE,
     //         winuser::WS_OVERLAPPEDWINDOW | winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN)
     // };
+
+    if !window.focusable {
+        ex_style |= winuser::WS_EX_NOACTIVATE;
+    }
 
     // adjusting the window coordinates using the style
     winuser::AdjustWindowRectEx(&mut rect, style, 0, ex_style);
@@ -450,15 +460,6 @@ unsafe fn init(window: WindowAttributes, pl_attribs: PlatformSpecificWindowBuild
             (None, None)
         };
 
-        let mut style = if !window.visible {
-            style
-        } else {
-            style | winuser::WS_VISIBLE
-        };
-
-        if pl_attribs.parent.is_some() {
-            style |= winuser::WS_CHILD;
-        }
 
         let handle = winuser::CreateWindowExW(ex_style,
             class_name.as_ptr(),
@@ -495,6 +496,14 @@ unsafe fn init(window: WindowAttributes, pl_attribs: PlatformSpecificWindowBuild
         winuser::RegisterRawInputDevices(&rid, 1, mem::size_of::<winuser::RAWINPUTDEVICE>() as u32);
     }
 
+    if window.visible {
+        let show_variant = match window.focusable {
+            true => winuser::SW_SHOW,
+            false => winuser::SW_SHOWNA
+        };
+        winuser::ShowWindow(real_window.0, show_variant);
+    }
+
     // Creating a mutex to track the current window state
     let window_state = Arc::new(Mutex::new(events_loop::WindowState {
         cursor: winuser::IDC_ARROW, // use arrow by default
@@ -522,7 +531,6 @@ unsafe fn init(window: WindowAttributes, pl_attribs: PlatformSpecificWindowBuild
         winuser::SetForegroundWindow(real_window.0);
     }
 
-    // Building the struct.
     Ok(Window {
         window: real_window,
         window_state: window_state,

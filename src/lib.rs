@@ -423,6 +423,8 @@ pub struct WindowAttributes {
 
     pub popup: bool,
 
+    pub focusable: bool,
+
     /// Whether the window should be immediately visible upon creation.
     ///
     /// The default is `true`.
@@ -455,6 +457,7 @@ impl Default for WindowAttributes {
             maximized: false,
             fullscreen: None,
             popup: false,
+            focusable: true,
             visible: true,
             transparent: false,
             decorations: true,
