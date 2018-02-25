@@ -594,7 +594,7 @@ impl Window2 {
 
     #[inline]
     pub fn get_inner_position(&self) -> Option<(i32, i32)> {
-        self.get_geometry().map(|x, y, _, _, b| (x + b/2, y + b/2)) // TODO: same issue as get_outer_size
+        self.get_geometry().map(|(x, y, _, _, b)| (x + b as i32/2, y + b as i32/2)) // TODO: same issue as get_outer_size
     }
 
     pub fn set_position(&self, x: i32, y: i32) {
