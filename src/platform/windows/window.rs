@@ -55,7 +55,8 @@ impl Window {
             let _ = tx.send(win);
         });
 
-        rx.recv().unwrap()
+        let window = rx.recv().unwrap();
+        window
     }
 
     pub fn set_title(&self, text: &str) {
@@ -69,9 +70,8 @@ impl Window {
 
     #[inline]
     pub fn show(&self) {
-        let current_state = self.window_state.lock().unwrap();
         unsafe {
-            let show_variant = match current_state.attributes.focusable {
+            let show_variant = match self.window_state.lock().unwrap().attributes.focusable {
                 true => winuser::SW_SHOW,
                 false => winuser::SW_SHOWNA
             };
@@ -115,8 +115,13 @@ impl Window {
     /// See the docs in the crate root file.
     pub fn set_position(&self, x: i32, y: i32) {
         unsafe {
+            let mut move_flags = winuser::SWP_ASYNCWINDOWPOS | winuser::SWP_NOZORDER | winuser::SWP_NOSIZE;
+            if !self.window_state.lock().unwrap().attributes.focusable {
+                move_flags |= winuser::SWP_NOACTIVATE;
+            }
+
             winuser::SetWindowPos(self.window.0, ptr::null_mut(), x as raw::c_int, y as raw::c_int,
-                                 0, 0, winuser::SWP_ASYNCWINDOWPOS | winuser::SWP_NOZORDER | winuser::SWP_NOSIZE);
+                                 0, 0, move_flags);
             winuser::UpdateWindow(self.window.0);
         }
     }
@@ -414,20 +419,6 @@ unsafe fn init(window: WindowAttributes, pl_attribs: PlatformSpecificWindowBuild
             style |= winuser::WS_OVERLAPPEDWINDOW | winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN;
         }
     }
-    // let (ex_style, style) = if fullscreen || !window.decorations {
-    //     (winuser::WS_EX_APPWINDOW,
-    //         //winapi::WS_POPUP is incompatible with winapi::WS_CHILD
-    //         if pl_attribs.parent.is_some() {
-    //             winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN
-    //         }
-    //         else {
-    //             winuser::WS_POPUP | winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN
-    //         }
-    //     )
-    // } else {
-    //     (winuser::WS_EX_APPWINDOW | winuser::WS_EX_WINDOWEDGE,
-    //         winuser::WS_OVERLAPPEDWINDOW | winuser::WS_CLIPSIBLINGS | winuser::WS_CLIPCHILDREN)
-    // };
 
     if !window.focusable {
         ex_style |= winuser::WS_EX_NOACTIVATE;

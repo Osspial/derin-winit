@@ -80,16 +80,17 @@ pub struct EventsLoop {
     // Receiver for the events. The sender is in the background thread.
     receiver: mpsc::Receiver<Event>,
     // Variable that contains the block state of the win32 event loop thread during a WM_SIZE event.
-    // The mutex's value is `true` when it's blocked, and should be set to false when it's done
-    // blocking. That's done by the parent thread when it receives a Resized event.
-    win32_block_loop: Arc<(Mutex<bool>, Condvar)>
+    // The mutex's value is `Some(true)` when it's blocked, and should be set to `Some(false)` when it's done
+    // blocking. That's done by the parent thread when it receives a Resized event. When the parent thread
+    // isn't running its event loop, it should be set to `None`.
+    win32_block_loop: Arc<(Mutex<Option<bool>>, Condvar)>
 }
 
 impl EventsLoop {
     pub fn new() -> EventsLoop {
         // The main events transfer channel.
         let (tx, rx) = mpsc::channel();
-        let win32_block_loop = Arc::new((Mutex::new(false), Condvar::new()));
+        let win32_block_loop = Arc::new((Mutex::new(None), Condvar::new()));
         let win32_block_loop_child = win32_block_loop.clone();
 
         // Local barrier in order to block the `new()` function until the background thread has
@@ -162,10 +163,11 @@ impl EventsLoop {
     pub fn poll_events<F>(&mut self, mut callback: F)
         where F: FnMut(Event)
     {
+        *self.win32_block_loop.0.lock().unwrap() = Some(false);
         loop {
             let event = match self.receiver.try_recv() {
                 Ok(e) => e,
-                Err(_) => return
+                Err(_) => break
             };
             let is_blocking = match event {
                 Event::WindowEvent{ event: WindowEvent::Resized(..), .. } => true,
@@ -177,19 +179,21 @@ impl EventsLoop {
             if is_blocking {
                 let (ref mutex, ref cvar) = *self.win32_block_loop;
                 let mut block_thread = mutex.lock().unwrap();
-                *block_thread = false;
+                *block_thread = Some(false);
                 cvar.notify_all();
             }
         }
+        *self.win32_block_loop.0.lock().unwrap() = None;
     }
 
     pub fn run_forever<F>(&mut self, mut callback: F)
         where F: FnMut(Event) -> ControlFlow
     {
+        *self.win32_block_loop.0.lock().unwrap() = Some(false);
         loop {
             let event = match self.receiver.recv() {
                 Ok(e) => e,
-                Err(_) => return
+                Err(_) => break
             };
             let is_blocking = match event {
                 Event::WindowEvent{ event: WindowEvent::Resized(..), .. } => true,
@@ -201,7 +205,7 @@ impl EventsLoop {
             if is_blocking {
                 let (ref mutex, ref cvar) = *self.win32_block_loop;
                 let mut block_thread = mutex.lock().unwrap();
-                *block_thread = false;
+                *block_thread = Some(false);
                 cvar.notify_all();
             }
             match flow {
@@ -209,6 +213,7 @@ impl EventsLoop {
                 ControlFlow::Break => break,
             }
         }
+        *self.win32_block_loop.0.lock().unwrap() = None;
     }
 
     pub fn create_proxy(&self) -> EventsLoopProxy {
@@ -299,7 +304,7 @@ thread_local!(static CONTEXT_STASH: RefCell<Option<ThreadLocalData>> = RefCell::
 struct ThreadLocalData {
     sender: mpsc::Sender<Event>,
     windows: HashMap<HWND, Arc<Mutex<WindowState>>>,
-    win32_block_loop: Arc<(Mutex<bool>, Condvar)>,
+    win32_block_loop: Arc<(Mutex<Option<bool>>, Condvar)>,
     mouse_buttons_down: u32
 }
 
@@ -389,13 +394,13 @@ pub unsafe extern "system" fn callback(window: HWND, msg: UINT,
                 if cstash.windows.get(&window).is_some() {
                     let (ref mutex, ref cvar) = *cstash.win32_block_loop;
                     let mut block_thread = mutex.lock().unwrap();
-                    *block_thread = true;
+                    *block_thread = block_thread.and(Some(true));
 
                     // The event needs to be sent after the lock to ensure that `notify_all` is
                     // called after `wait`.
                     cstash.sender.send(event).ok();
 
-                    while *block_thread {
+                    while *block_thread == Some(true) {
                         block_thread = cvar.wait(block_thread).unwrap();
                     }
                 } else {
@@ -475,13 +480,13 @@ pub unsafe extern "system" fn callback(window: HWND, msg: UINT,
                 if cstash.windows.get(&window).is_some() {
                     let (ref mutex, ref cvar) = *cstash.win32_block_loop;
                     let mut block_thread = mutex.lock().unwrap();
-                    *block_thread = true;
+                    *block_thread = block_thread.and(Some(true));
 
                     // The event needs to be sent after the lock to ensure that `notify_all` is
                     // called after `wait`.
                     cstash.sender.send(move_event).ok();
 
-                    while *block_thread {
+                    while *block_thread == Some(true) {
                         block_thread = cvar.wait(block_thread).unwrap();
                     }
                 } else {
