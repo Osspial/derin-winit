@@ -420,10 +420,6 @@ unsafe fn init(window: WindowAttributes, pl_attribs: PlatformSpecificWindowBuild
         }
     }
 
-    if !window.focusable {
-        ex_style |= winuser::WS_EX_NOACTIVATE;
-    }
-
     // adjusting the window coordinates using the style
     winuser::AdjustWindowRectEx(&mut rect, style, 0, ex_style);
 

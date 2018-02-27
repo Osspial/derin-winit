@@ -768,6 +768,21 @@ pub unsafe extern "system" fn callback(window: HWND, msg: UINT,
             0
         },
 
+        winuser::WM_MOUSEACTIVATE => {
+            CONTEXT_STASH.with(|context_stash| {
+                if let Some(cstash) = context_stash.borrow().as_ref() {
+                    if let Some(wstash) = cstash.windows.get(&window) {
+                        let window_state = wstash.lock().unwrap();
+                        if !window_state.attributes.focusable {
+                            return winuser::MA_NOACTIVATE;
+                        };
+                    }
+                }
+
+                winuser::MA_ACTIVATE
+            }) as LRESULT
+        },
+
         winuser::WM_KILLFOCUS => {
             use events::WindowEvent::Focused;
             send_event(Event::WindowEvent {
