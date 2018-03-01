@@ -122,7 +122,6 @@ impl Window {
 
             winuser::SetWindowPos(self.window.0, ptr::null_mut(), x as raw::c_int, y as raw::c_int,
                                  0, 0, move_flags);
-            winuser::UpdateWindow(self.window.0);
         }
     }
 
@@ -170,15 +169,16 @@ impl Window {
 
             winuser::SetWindowPos(self.window.0, ptr::null_mut(), 0, 0, outer_x, outer_y,
                 winuser::SWP_ASYNCWINDOWPOS | winuser::SWP_NOZORDER | winuser::SWP_NOREPOSITION | winuser::SWP_NOMOVE);
-            winuser::UpdateWindow(self.window.0);
         }
     }
 
     /// See the docs in the crate root file.
     #[inline]
     pub fn set_min_dimensions(&self, dimensions: Option<(u32, u32)>) {
-        let mut window_state = self.window_state.lock().unwrap();
-        window_state.attributes.min_dimensions = dimensions;
+        {
+            let mut window_state = self.window_state.lock().unwrap();
+            window_state.attributes.min_dimensions = dimensions;
+        }
 
         // Make windows re-check the window size bounds.
         if let Some(inner_size) = self.get_inner_size() {
@@ -189,8 +189,10 @@ impl Window {
     /// See the docs in the crate root file.
     #[inline]
     pub fn set_max_dimensions(&self, dimensions: Option<(u32, u32)>) {
-        let mut window_state = self.window_state.lock().unwrap();
-        window_state.attributes.max_dimensions = dimensions;
+        {
+            let mut window_state = self.window_state.lock().unwrap();
+            window_state.attributes.max_dimensions = dimensions;
+        }
 
         // Make windows re-check the window size bounds.
         if let Some(inner_size) = self.get_inner_size() {
