@@ -19,8 +19,9 @@ use std::{mem, ptr};
 use std::cell::RefCell;
 use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::collections::VecDeque;
+use parking_lot::Mutex;
 
 use winapi::ctypes::c_int;
 use winapi::shared::minwindef::{
@@ -447,7 +448,7 @@ pub unsafe extern "system" fn callback(
         winuser::WM_MOUSEMOVE => {
             use events::WindowEvent::{CursorEntered, CursorMoved};
             let mouse_outside_window = {
-                let mut window = subclass_input.window_state.lock().unwrap();
+                let mut window = subclass_input.window_state.lock();
                 if !window.mouse_in_window {
                     window.mouse_in_window = true;
                     true
@@ -487,7 +488,7 @@ pub unsafe extern "system" fn callback(
         winuser::WM_MOUSELEAVE => {
             use events::WindowEvent::CursorLeft;
             let mouse_in_window = {
-                let mut window = subclass_input.window_state.lock().unwrap();
+                let mut window = subclass_input.window_state.lock();
                 if window.mouse_in_window {
                     window.mouse_in_window = false;
                     true
@@ -578,7 +579,7 @@ pub unsafe extern "system" fn callback(
             use events::MouseButton::Left;
             use events::ElementState::Pressed;
 
-            capture_mouse(window, &mut *subclass_input.window_state.lock().unwrap());
+            capture_mouse(window, &mut *subclass_input.window_state.lock());
 
             subclass_input.send_event(Event::WindowEvent {
                 window_id: SuperWindowId(WindowId(window)),
@@ -592,7 +593,7 @@ pub unsafe extern "system" fn callback(
             use events::MouseButton::Left;
             use events::ElementState::Released;
 
-            release_mouse(&mut *subclass_input.window_state.lock().unwrap());
+            release_mouse(&mut *subclass_input.window_state.lock());
 
             subclass_input.send_event(Event::WindowEvent {
                 window_id: SuperWindowId(WindowId(window)),
@@ -606,7 +607,7 @@ pub unsafe extern "system" fn callback(
             use events::MouseButton::Right;
             use events::ElementState::Pressed;
 
-            capture_mouse(window, &mut *subclass_input.window_state.lock().unwrap());
+            capture_mouse(window, &mut *subclass_input.window_state.lock());
 
             subclass_input.send_event(Event::WindowEvent {
                 window_id: SuperWindowId(WindowId(window)),
@@ -620,7 +621,7 @@ pub unsafe extern "system" fn callback(
             use events::MouseButton::Right;
             use events::ElementState::Released;
 
-            release_mouse(&mut *subclass_input.window_state.lock().unwrap());
+            release_mouse(&mut *subclass_input.window_state.lock());
 
             subclass_input.send_event(Event::WindowEvent {
                 window_id: SuperWindowId(WindowId(window)),
@@ -634,7 +635,7 @@ pub unsafe extern "system" fn callback(
             use events::MouseButton::Middle;
             use events::ElementState::Pressed;
 
-            capture_mouse(window, &mut *subclass_input.window_state.lock().unwrap());
+            capture_mouse(window, &mut *subclass_input.window_state.lock());
 
             subclass_input.send_event(Event::WindowEvent {
                 window_id: SuperWindowId(WindowId(window)),
@@ -648,7 +649,7 @@ pub unsafe extern "system" fn callback(
             use events::MouseButton::Middle;
             use events::ElementState::Released;
 
-            release_mouse(&mut *subclass_input.window_state.lock().unwrap());
+            release_mouse(&mut *subclass_input.window_state.lock());
 
             subclass_input.send_event(Event::WindowEvent {
                 window_id: SuperWindowId(WindowId(window)),
@@ -663,7 +664,7 @@ pub unsafe extern "system" fn callback(
             use events::ElementState::Pressed;
             let xbutton = winuser::GET_XBUTTON_WPARAM(wparam);
 
-            capture_mouse(window, &mut *subclass_input.window_state.lock().unwrap());
+            capture_mouse(window, &mut *subclass_input.window_state.lock());
 
             subclass_input.send_event(Event::WindowEvent {
                 window_id: SuperWindowId(WindowId(window)),
@@ -678,7 +679,7 @@ pub unsafe extern "system" fn callback(
             use events::ElementState::Released;
             let xbutton = winuser::GET_XBUTTON_WPARAM(wparam);
 
-            release_mouse(&mut *subclass_input.window_state.lock().unwrap());
+            release_mouse(&mut *subclass_input.window_state.lock());
 
             subclass_input.send_event(Event::WindowEvent {
                 window_id: SuperWindowId(WindowId(window)),
@@ -877,7 +878,7 @@ pub unsafe extern "system" fn callback(
 
         winuser::WM_SETCURSOR => {
             let call_def_window_proc = {
-                let window_state = subclass_input.window_state.lock().unwrap();
+                let window_state = subclass_input.window_state.lock();
                 if window_state.mouse_in_window {
                     let cursor = winuser::LoadCursorW(
                         ptr::null_mut(),
@@ -922,7 +923,7 @@ pub unsafe extern "system" fn callback(
         winuser::WM_GETMINMAXINFO => {
             let mmi = lparam as *mut winuser::MINMAXINFO;
 
-            let window_state = subclass_input.window_state.lock().unwrap();
+            let window_state = subclass_input.window_state.lock();
 
             if window_state.min_size.is_some() || window_state.max_size.is_some() {
                 let style = winuser::GetWindowLongA(window, winuser::GWL_STYLE) as DWORD;
@@ -953,7 +954,7 @@ pub unsafe extern "system" fn callback(
             let new_dpi_factor = dpi_to_scale_factor(new_dpi_x);
 
             let suppress_resize = {
-                let mut window_state = subclass_input.window_state.lock().unwrap();
+                let mut window_state = subclass_input.window_state.lock();
                 let suppress_resize = window_state.saved_window_info
                     .as_mut()
                     .map(|saved_window_info| {

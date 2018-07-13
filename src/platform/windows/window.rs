@@ -4,8 +4,9 @@ use std::cell::{Cell, RefCell};
 use std::ffi::OsStr;
 use std::{io, mem, ptr};
 use std::os::windows::ffi::OsStrExt;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::sync::mpsc::channel;
+use parking_lot::Mutex;
 
 use winapi::ctypes::c_int;
 use winapi::shared::minwindef::{BOOL, DWORD, FALSE, LPARAM, TRUE, UINT, WORD, WPARAM};
@@ -246,7 +247,7 @@ impl Window {
     }
 
     pub(crate) fn set_min_dimensions_physical(&self, dimensions: Option<(u32, u32)>) {
-        self.window_state.lock().unwrap().min_size = dimensions.map(Into::into);
+        self.window_state.lock().min_size = dimensions.map(Into::into);
         // Make windows re-check the window size bounds.
         self.get_inner_size_physical()
             .map(|(width, height)| self.set_inner_size_physical(width, height));
@@ -262,7 +263,7 @@ impl Window {
     }
 
     pub fn set_max_dimensions_physical(&self, dimensions: Option<(u32, u32)>) {
-        self.window_state.lock().unwrap().max_size = dimensions.map(Into::into);
+        self.window_state.lock().max_size = dimensions.map(Into::into);
         // Make windows re-check the window size bounds.
         self.get_inner_size_physical()
             .map(|(width, height)| self.set_inner_size_physical(width, height));
@@ -337,7 +338,7 @@ impl Window {
             _ => winuser::IDC_ARROW, // use arrow for the missing cases.
         };
 
-        let mut cur = self.window_state.lock().unwrap();
+        let mut cur = self.window_state.lock();
         cur.cursor = Cursor(cursor_id);
     }
 
@@ -389,7 +390,7 @@ impl Window {
         let currently_grabbed = unsafe { self.cursor_is_grabbed() }?;
         let window_state = Arc::clone(&self.window_state);
         {
-            let window_state_lock = window_state.lock().unwrap();
+            let window_state_lock = window_state.lock();
             if currently_grabbed == grab
             && grab == window_state_lock.cursor_grabbed {
                 return Ok(());
@@ -400,7 +401,7 @@ impl Window {
         self.events_loop_proxy.execute_in_thread(move || {
             let result = unsafe { Self::grab_cursor_inner(&window, grab) };
             if result.is_ok() {
-                window_state.lock().unwrap().cursor_grabbed = grab;
+                window_state.lock().cursor_grabbed = grab;
             }
             let _ = tx.send(result);
         });
@@ -419,14 +420,14 @@ impl Window {
     pub fn hide_cursor(&self, hide: bool) {
         let window_state = Arc::clone(&self.window_state);
         {
-            let window_state_lock = window_state.lock().unwrap();
+            let window_state_lock = window_state.lock();
             // We don't want to increment/decrement the display count more than once!
             if hide == window_state_lock.cursor_hidden { return; }
         }
         let (tx, rx) = channel();
         self.events_loop_proxy.execute_in_thread(move || {
             unsafe { Self::hide_cursor_inner(hide) };
-            window_state.lock().unwrap().cursor_hidden = hide;
+            window_state.lock().cursor_hidden = hide;
             let _ = tx.send(());
         });
         rx.recv().unwrap()
@@ -485,7 +486,7 @@ impl Window {
     }
 
     unsafe fn set_fullscreen_style(&self) -> (LONG, LONG) {
-        let mut window_state = self.window_state.lock().unwrap();
+        let mut window_state = self.window_state.lock();
 
         if self.fullscreen.borrow().is_none() || window_state.saved_window_info.is_none() {
             let rect = util::get_window_rect(self.window.0).expect("`GetWindowRect` failed");
@@ -511,7 +512,7 @@ impl Window {
 
     unsafe fn restore_saved_window(&self) {
         let (rect, mut style, ex_style) = {
-            let mut window_state_lock = self.window_state.lock().unwrap();
+            let mut window_state_lock = self.window_state.lock();
 
             // 'saved_window_info' can be None if the window has never been
             // in fullscreen mode before this method gets called.
@@ -574,7 +575,7 @@ impl Window {
 
             mark_fullscreen(window.0, false);
 
-            let window_state_lock = window_state.lock().unwrap();
+            let window_state_lock = window_state.lock();
             let _ = Self::grab_cursor_inner(&window, window_state_lock.cursor_grabbed);
         });
     }
@@ -625,7 +626,7 @@ impl Window {
 
                         mark_fullscreen(window.0, true);
 
-                        let window_state_lock = window_state.lock().unwrap();
+                        let window_state_lock = window_state.lock();
                         let _ = Self::grab_cursor_inner(&window, window_state_lock.cursor_grabbed);
                     });
                 }
@@ -650,7 +651,7 @@ impl Window {
         // if we are in fullscreen mode, we only change the saved window info
         if self.fullscreen.borrow().is_some() {
             {
-                let mut window_state = self.window_state.lock().unwrap();
+                let mut window_state = self.window_state.lock();
                 let saved = window_state.saved_window_info.as_mut().unwrap();
 
                 unsafe {
