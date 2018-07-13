@@ -4,8 +4,9 @@ use std::{io, mem, ptr};
 use std::cell::Cell;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::sync::mpsc::channel;
+use parking_lot::Mutex;
 
 use winapi::ctypes::c_int;
 use winapi::shared::minwindef::{BOOL, DWORD, FALSE, LPARAM, TRUE, UINT, WORD, WPARAM};
@@ -234,7 +235,7 @@ impl Window {
     }
 
     pub(crate) fn set_min_dimensions_physical(&self, dimensions: Option<(u32, u32)>) {
-        self.window_state.lock().unwrap().min_size = dimensions.map(Into::into);
+        self.window_state.lock().min_size = dimensions.map(Into::into);
         // Make windows re-check the window size bounds.
         self.get_inner_size_physical()
             .map(|(width, height)| self.set_inner_size_physical(width, height));
@@ -250,7 +251,7 @@ impl Window {
     }
 
     pub fn set_max_dimensions_physical(&self, dimensions: Option<(u32, u32)>) {
-        self.window_state.lock().unwrap().max_size = dimensions.map(Into::into);
+        self.window_state.lock().max_size = dimensions.map(Into::into);
         // Make windows re-check the window size bounds.
         self.get_inner_size_physical()
             .map(|(width, height)| self.set_inner_size_physical(width, height));
@@ -267,7 +268,7 @@ impl Window {
 
     #[inline]
     pub fn set_resizable(&self, resizable: bool) {
-        let mut window_state = self.window_state.lock().unwrap();
+        let mut window_state = self.window_state.lock();
         if mem::replace(&mut window_state.resizable, resizable) != resizable {
             // If we're in fullscreen, update stored configuration but don't apply anything.
             if window_state.fullscreen.is_none() {
@@ -318,7 +319,7 @@ impl Window {
             _ => winuser::IDC_ARROW, // use arrow for the missing cases.
         };
 
-        let mut cur = self.window_state.lock().unwrap();
+        let mut cur = self.window_state.lock();
         cur.cursor = Cursor(cursor_id);
     }
 
@@ -368,7 +369,7 @@ impl Window {
     #[inline]
     pub fn grab_cursor(&self, grab: bool) -> Result<(), String> {
         let currently_grabbed = unsafe { self.cursor_is_grabbed() }?;
-        let window_state_lock = self.window_state.lock().unwrap();
+        let window_state_lock = self.window_state.lock();
         if currently_grabbed == grab && grab == window_state_lock.cursor_grabbed {
             return Ok(());
         }
@@ -378,7 +379,7 @@ impl Window {
         self.events_loop_proxy.execute_in_thread(move || {
             let result = unsafe { Self::grab_cursor_inner(&window, grab) };
             if result.is_ok() {
-                window_state.lock().unwrap().cursor_grabbed = grab;
+                window_state.lock().cursor_grabbed = grab;
             }
             let _ = tx.send(result);
         });
@@ -396,14 +397,14 @@ impl Window {
 
     #[inline]
     pub fn hide_cursor(&self, hide: bool) {
-        let window_state_lock = self.window_state.lock().unwrap();
+        let window_state_lock = self.window_state.lock();
         // We don't want to increment/decrement the display count more than once!
         if hide == window_state_lock.cursor_hidden { return; }
         let (tx, rx) = channel();
         let window_state = Arc::clone(&self.window_state);
         self.events_loop_proxy.execute_in_thread(move || {
             unsafe { Self::hide_cursor_inner(hide) };
-            window_state.lock().unwrap().cursor_hidden = hide;
+            window_state.lock().cursor_hidden = hide;
             let _ = tx.send(());
         });
         drop(window_state_lock);
@@ -412,7 +413,7 @@ impl Window {
 
     #[inline]
     pub fn get_hidpi_factor(&self) -> f64 {
-        self.window_state.lock().unwrap().dpi_factor
+        self.window_state.lock().dpi_factor
     }
 
     fn set_cursor_position_physical(&self, x: i32, y: i32) -> Result<(), String> {
@@ -442,7 +443,7 @@ impl Window {
 
     #[inline]
     pub fn set_maximized(&self, maximized: bool) {
-        let mut window_state = self.window_state.lock().unwrap();
+        let mut window_state = self.window_state.lock();
         window_state.maximized = true;
         // We only maximize if we're not in fullscreen.
         if window_state.fullscreen.is_none() {
@@ -551,14 +552,14 @@ impl Window {
 
             mark_fullscreen(window.0, false);
 
-            let window_state_lock = window_state.lock().unwrap();
+            let window_state_lock = window_state.lock();
             let _ = Self::grab_cursor_inner(&window, window_state_lock.cursor_grabbed);
         });
     }
 
     #[inline]
     pub fn set_fullscreen(&self, monitor: Option<RootMonitorId>) {
-        let mut window_state_lock = self.window_state.lock().unwrap();
+        let mut window_state_lock = self.window_state.lock();
         unsafe {
             match &monitor {
                 &Some(RootMonitorId { ref inner }) => {
@@ -602,7 +603,7 @@ impl Window {
 
                         mark_fullscreen(window.0, true);
 
-                        let window_state_lock = window_state.lock().unwrap();
+                        let window_state_lock = window_state.lock();
                         let _ = Self::grab_cursor_inner(&window, window_state_lock.cursor_grabbed);
                     });
                 }
@@ -617,10 +618,10 @@ impl Window {
 
     #[inline]
     pub fn set_decorations(&self, decorations: bool) {
-        let mut window_state = self.window_state.lock().unwrap();
+        let mut window_state = self.window_state.lock();
         if mem::replace(&mut window_state.decorations, decorations) != decorations {
-        let style_flags = (winuser::WS_CAPTION | winuser::WS_THICKFRAME) as LONG;
-        let ex_style_flags = (winuser::WS_EX_WINDOWEDGE) as LONG;
+            let style_flags = (winuser::WS_CAPTION | winuser::WS_THICKFRAME) as LONG;
+            let ex_style_flags = (winuser::WS_EX_WINDOWEDGE) as LONG;
 
             // if we are in fullscreen mode, we only change the saved window info
             if window_state.fullscreen.is_some() {
@@ -690,7 +691,7 @@ impl Window {
 
     #[inline]
     pub fn set_always_on_top(&self, always_on_top: bool) {
-        let mut window_state = self.window_state.lock().unwrap();
+        let mut window_state = self.window_state.lock();
         if mem::replace(&mut window_state.always_on_top, always_on_top) != always_on_top {
             let window = self.window.clone();
             self.events_loop_proxy.execute_in_thread(move || {
@@ -732,7 +733,7 @@ impl Window {
         } else {
             icon::unset_for_window(self.window.0, IconType::Small);
         }
-        self.window_state.lock().unwrap().window_icon = window_icon;
+        self.window_state.lock().window_icon = window_icon;
     }
 
     #[inline]
@@ -745,7 +746,7 @@ impl Window {
         } else {
             icon::unset_for_window(self.window.0, IconType::Big);
         }
-        self.window_state.lock().unwrap().taskbar_icon = taskbar_icon;
+        self.window_state.lock().taskbar_icon = taskbar_icon;
     }
 
     #[inline]
