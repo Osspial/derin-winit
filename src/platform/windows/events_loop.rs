@@ -41,7 +41,7 @@ use winapi::um::winnt::{LONG, LPCSTR, SHORT};
 use {
     ControlFlow,
     Event,
-    EventsLoopClosed,
+    EventLoopClosed,
     KeyboardInput,
     LogicalPosition,
     LogicalSize,
@@ -133,7 +133,7 @@ impl Inserter {
     }
 }
 
-pub struct EventsLoop {
+pub struct EventLoop {
     // Id of the background thread from the Win32 API.
     thread_id: DWORD,
     // Receiver for the events. The sender is in the background thread.
@@ -144,12 +144,12 @@ pub struct EventsLoop {
     win32_block_loop: Arc<(Mutex<bool>, Condvar)>,
 }
 
-impl EventsLoop {
-    pub fn new() -> EventsLoop {
+impl EventLoop {
+    pub fn new() -> EventLoop {
         Self::with_dpi_awareness(true)
     }
 
-    pub fn with_dpi_awareness(dpi_aware: bool) -> EventsLoop {
+    pub fn with_dpi_awareness(dpi_aware: bool) -> EventLoop {
         become_dpi_aware(dpi_aware);
 
         // The main events transfer channel.
@@ -217,7 +217,7 @@ impl EventsLoop {
             processthreadsapi::GetThreadId(handle)
         };
 
-        EventsLoop {
+        EventLoop {
             thread_id,
             receiver: rx,
             win32_block_loop,
@@ -274,8 +274,8 @@ impl EventsLoop {
         }
     }
 
-    pub fn create_proxy(&self) -> EventsLoopProxy {
-        EventsLoopProxy {
+    pub fn create_proxy(&self) -> EventLoopProxy {
+        EventLoopProxy {
             thread_id: self.thread_id,
         }
     }
@@ -294,7 +294,7 @@ impl EventsLoop {
     }
 }
 
-impl Drop for EventsLoop {
+impl Drop for EventLoop {
     fn drop(&mut self) {
         unsafe {
             // Posting `WM_QUIT` will cause `GetMessage` to stop.
@@ -304,12 +304,12 @@ impl Drop for EventsLoop {
 }
 
 #[derive(Clone)]
-pub struct EventsLoopProxy {
+pub struct EventLoopProxy {
     thread_id: DWORD,
 }
 
-impl EventsLoopProxy {
-    pub fn wakeup(&self) -> Result<(), EventsLoopClosed> {
+impl EventLoopProxy {
+    pub fn wakeup(&self) -> Result<(), EventLoopClosed> {
         unsafe {
             if winuser::PostThreadMessageA(self.thread_id, *WAKEUP_MSG_ID, 0, 0) != 0 {
                 Ok(())
@@ -321,7 +321,7 @@ impl EventsLoopProxy {
                 // > idThread does not have a message queue. GetLastError returns
                 // > ERROR_NOT_ENOUGH_QUOTA when the message limit is hit.
                 // TODO: handle ERROR_NOT_ENOUGH_QUOTA
-                Err(EventsLoopClosed)
+                Err(EventLoopClosed)
             }
         }
     }
@@ -362,7 +362,7 @@ impl EventsLoopProxy {
 }
 
 lazy_static! {
-    // Message sent by the `EventsLoopProxy` when we want to wake up the thread.
+    // Message sent by the `EventLoopProxy` when we want to wake up the thread.
     // WPARAM and LPARAM are unused.
     static ref WAKEUP_MSG_ID: u32 = {
         unsafe {

@@ -27,8 +27,7 @@ use {
 };
 use platform::platform::{Cursor, PlatformSpecificWindowBuilderAttributes, WindowId};
 use platform::platform::dpi::{dpi_to_scale_factor, get_hwnd_dpi};
-use platform::platform::events_loop::{self, EventsLoop, DESTROY_MSG_ID, INITIAL_DPI_MSG_ID};
-use platform::platform::events_loop::WindowState;
+use platform::platform::events_loop::{self, DESTROY_MSG_ID, EventLoop, INITIAL_DPI_MSG_ID, WindowState};
 use platform::platform::icon::{self, IconType, WinIcon};
 use platform::platform::monitor::get_available_monitors;
 use platform::platform::raw_input::register_all_mice_and_keyboards_for_raw_input;
@@ -45,7 +44,7 @@ pub struct Window {
     window_state: Arc<Mutex<WindowState>>,
 
     // The events loop proxy.
-    events_loop_proxy: events_loop::EventsLoopProxy,
+    events_loop_proxy: events_loop::EventLoopProxy,
 }
 
 // https://blogs.msdn.microsoft.com/oldnewthing/20131017-00/?p=2903
@@ -72,7 +71,7 @@ unsafe fn unjust_window_rect(prc: &mut RECT, style: DWORD, ex_style: DWORD) -> B
 
 impl Window {
     pub fn new(
-        events_loop: &EventsLoop,
+        events_loop: &EventLoop,
         w_attr: WindowAttributes,
         pl_attr: PlatformSpecificWindowBuilderAttributes,
     ) -> Result<Window, CreationError> {
@@ -723,7 +722,7 @@ impl Window {
     #[inline]
     pub fn get_current_monitor(&self) -> RootMonitorId {
         RootMonitorId {
-            inner: EventsLoop::get_current_monitor(self.window.0),
+            inner: EventLoop::get_current_monitor(self.window.0),
         }
     }
 
@@ -802,7 +801,7 @@ unsafe fn init(
     mut attributes: WindowAttributes,
     mut pl_attribs: PlatformSpecificWindowBuilderAttributes,
     inserter: events_loop::Inserter,
-    events_loop_proxy: events_loop::EventsLoopProxy,
+    events_loop_proxy: events_loop::EventLoopProxy,
 ) -> Result<Window, CreationError> {
     let title = OsStr::new(&attributes.title)
         .encode_wide()

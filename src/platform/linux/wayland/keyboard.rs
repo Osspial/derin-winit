@@ -10,8 +10,8 @@ use {ElementState, KeyboardInput, ModifiersState, VirtualKeyCode, WindowEvent};
 
 pub fn init_keyboard(
     keyboard: NewProxy<wl_keyboard::WlKeyboard>,
-    sink: Arc<Mutex<EventsLoopSink>>,
-    events_loop_proxy: EventsLoopProxy,
+    sink: Arc<Mutex<EventLoopSink>>,
+    events_loop_proxy: EventLoopProxy,
 ) -> Proxy<wl_keyboard::WlKeyboard> {
     // { variables to be captured by the closures
     let target = Arc::new(Mutex::new(None));
