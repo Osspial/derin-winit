@@ -75,15 +75,11 @@ impl Window {
         w_attr: WindowAttributes,
         pl_attr: PlatformSpecificWindowBuilderAttributes,
     ) -> Result<Window, CreationError> {
-        let (tx, rx) = channel();
-        let proxy = events_loop.create_proxy();
-        events_loop.execute_in_thread(move |inserter| {
-            // We dispatch an `init` function because of code style.
-            // First person to remove the need for cloning here gets a cookie!
-            let win = unsafe { init(w_attr.clone(), pl_attr.clone(), inserter, proxy.clone()) };
-            let _ = tx.send(win);
-        });
-        rx.recv().unwrap()
+        // We dispatch an `init` function because of code style.
+        // First person to remove the need for cloning here gets a cookie!
+        //
+        // done. you owe me -- ossi
+        unsafe { init(w_attr, pl_attr, events_loop) }
     }
 
     pub fn set_title(&self, text: &str) {
@@ -379,7 +375,7 @@ impl Window {
         let window = self.window.clone();
         let window_state = Arc::clone(&self.window_state);
         let (tx, rx) = channel();
-        self.events_loop_proxy.execute_in_thread(move |_| {
+        self.events_loop_proxy.execute_in_thread(move || {
             let result = unsafe { Self::grab_cursor_inner(&window, grab) };
             if result.is_ok() {
                 window_state.lock().unwrap().cursor_grabbed = grab;
@@ -405,7 +401,7 @@ impl Window {
         if hide == window_state_lock.cursor_hidden { return; }
         let (tx, rx) = channel();
         let window_state = Arc::clone(&self.window_state);
-        self.events_loop_proxy.execute_in_thread(move |_| {
+        self.events_loop_proxy.execute_in_thread(move || {
             unsafe { Self::hide_cursor_inner(hide) };
             window_state.lock().unwrap().cursor_hidden = hide;
             let _ = tx.send(());
@@ -456,7 +452,7 @@ impl Window {
         let window = self.window.clone();
         unsafe {
             // `ShowWindow` resizes the window, so it must be called from the main thread.
-            self.events_loop_proxy.execute_in_thread(move |_| {
+            self.events_loop_proxy.execute_in_thread(move || {
                 winuser::ShowWindow(
                     window.0,
                     if maximized {
@@ -519,7 +515,7 @@ impl Window {
 
         // We're restoring the window to its size and position from before being fullscreened.
         // `ShowWindow` resizes the window, so it must be called from the main thread.
-        self.events_loop_proxy.execute_in_thread(move |_| {
+        self.events_loop_proxy.execute_in_thread(move || {
             let _ = Self::grab_cursor_inner(&window, false);
 
             if resizable {
@@ -572,7 +568,7 @@ impl Window {
                     let window_state = Arc::clone(&self.window_state);
 
                     let (style, ex_style) = self.set_fullscreen_style(&mut window_state_lock);
-                    self.events_loop_proxy.execute_in_thread(move |_| {
+                    self.events_loop_proxy.execute_in_thread(move || {
                         let _ = Self::grab_cursor_inner(&window, false);
 
                         winuser::SetWindowLongW(
@@ -669,7 +665,7 @@ impl Window {
 
                     let window = self.window.clone();
 
-                    self.events_loop_proxy.execute_in_thread(move |_| {
+                    self.events_loop_proxy.execute_in_thread(move || {
                         winuser::SetWindowLongW(window.0, winuser::GWL_STYLE, style);
                         winuser::SetWindowLongW(window.0, winuser::GWL_EXSTYLE, ex_style);
                         winuser::AdjustWindowRectEx(&mut rect, style as _, 0, ex_style as _);
@@ -697,7 +693,7 @@ impl Window {
         let mut window_state = self.window_state.lock().unwrap();
         if mem::replace(&mut window_state.always_on_top, always_on_top) != always_on_top {
             let window = self.window.clone();
-            self.events_loop_proxy.execute_in_thread(move |_| {
+            self.events_loop_proxy.execute_in_thread(move || {
                 let insert_after = if always_on_top {
                     winuser::HWND_TOPMOST
                 } else {
@@ -800,8 +796,7 @@ pub unsafe fn adjust_size(
 unsafe fn init(
     mut attributes: WindowAttributes,
     mut pl_attribs: PlatformSpecificWindowBuilderAttributes,
-    inserter: events_loop::Inserter,
-    events_loop_proxy: events_loop::EventLoopProxy,
+    event_loop: &events_loop::EventLoop,
 ) -> Result<Window, CreationError> {
     let title = OsStr::new(&attributes.title)
         .encode_wide()
@@ -1005,6 +1000,7 @@ unsafe fn init(
             maximized: attributes.maximized,
             resizable: attributes.resizable,
             always_on_top: attributes.always_on_top,
+            mouse_buttons_down: 0
         };
         // Creating a mutex to track the current window state
         Arc::new(Mutex::new(window_state))
@@ -1025,7 +1021,7 @@ unsafe fn init(
     let win = Window {
         window: real_window,
         window_state,
-        events_loop_proxy,
+        events_loop_proxy: event_loop.create_proxy(),
     };
 
     win.set_maximized(attributes.maximized);
@@ -1034,7 +1030,12 @@ unsafe fn init(
         force_window_active(win.window.0);
     }
 
-    inserter.insert(win.window.0, win.window_state.clone());
+    let subclass_input = events_loop::SubclassInput {
+        window_state: win.window_state.clone(),
+        event_queue: event_loop.event_queue.clone()
+    };
+
+    events_loop::subclass_window(win.window.0, subclass_input);
 
     Ok(win)
 }
@@ -1060,7 +1061,7 @@ unsafe fn register_window_class(
     let class = winuser::WNDCLASSEXW {
         cbSize: mem::size_of::<winuser::WNDCLASSEXW>() as UINT,
         style: winuser::CS_HREDRAW | winuser::CS_VREDRAW | winuser::CS_OWNDC,
-        lpfnWndProc: Some(events_loop::callback),
+        lpfnWndProc: Some(winuser::DefWindowProcW),
         cbClsExtra: 0,
         cbWndExtra: 0,
         hInstance: libloaderapi::GetModuleHandleW(ptr::null()),
