@@ -165,6 +165,7 @@ impl EventLoop {
 
             let mut msg = mem::uninitialized();
 
+            event_handler(Event::NewEvents(StartCause::Init), &event_loop, &mut control_flow);
             'main: loop {
                 macro_rules! call_event_handler {
                     ($event:expr) => {{
