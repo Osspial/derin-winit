@@ -7,11 +7,11 @@ use std::collections::VecDeque;
 use std::os::raw::*;
 use std::sync::Weak;
 
-use cocoa::base::{class, id, nil};
+use cocoa::base::{id, nil};
 use cocoa::appkit::{NSEvent, NSView, NSWindow};
 use cocoa::foundation::{NSPoint, NSRect, NSSize, NSString, NSUInteger};
 use objc::declare::ClassDecl;
-use objc::runtime::{Class, Object, Protocol, Sel, BOOL};
+use objc::runtime::{Class, Object, Protocol, Sel, BOOL, YES};
 
 use {ElementState, Event, KeyboardInput, MouseButton, WindowEvent, WindowId};
 use platform::platform::events_loop::{DEVICE_ID, event_mods, Shared, to_virtual_key_code};
@@ -64,7 +64,7 @@ unsafe impl Sync for ViewClass {}
 
 lazy_static! {
     static ref VIEW_CLASS: ViewClass = unsafe {
-        let superclass = Class::get("NSView").unwrap();
+        let superclass = class!(NSView);
         let mut decl = ClassDecl::new("WinitView", superclass).unwrap();
         decl.add_method(sel!(dealloc), dealloc as extern fn(&Object, Sel));
         decl.add_method(
@@ -122,6 +122,7 @@ lazy_static! {
         decl.add_method(sel!(mouseDragged:), mouse_dragged as extern fn(&Object, Sel, id));
         decl.add_method(sel!(rightMouseDragged:), right_mouse_dragged as extern fn(&Object, Sel, id));
         decl.add_method(sel!(otherMouseDragged:), other_mouse_dragged as extern fn(&Object, Sel, id));
+        decl.add_method(sel!(_wantsKeyDownForEvent:), wants_key_down_for_event as extern fn(&Object, Sel, id) -> BOOL);
         decl.add_ivar::<*mut c_void>("winitState");
         decl.add_ivar::<id>("markedText");
         let protocol = Protocol::get("NSTextInputClient").unwrap();
@@ -191,7 +192,7 @@ extern fn set_marked_text(
         let marked_text_ref: &mut id = this.get_mut_ivar("markedText");
         let _: () = msg_send![(*marked_text_ref), release];
         let marked_text = NSMutableAttributedString::alloc(nil);
-        let has_attr = msg_send![string, isKindOfClass:class("NSAttributedString")];
+        let has_attr = msg_send![string, isKindOfClass:class!(NSAttributedString)];
         if has_attr {
             marked_text.initWithAttributedString(string);
         } else {
@@ -214,7 +215,7 @@ extern fn unmark_text(this: &Object, _sel: Sel) {
 
 extern fn valid_attributes_for_marked_text(_this: &Object, _sel: Sel) -> id {
     //println!("validAttributesForMarkedText");
-    unsafe { msg_send![class("NSArray"), array] }
+    unsafe { msg_send![class!(NSArray), array] }
 }
 
 extern fn attributed_substring_for_proposed_range(
@@ -265,7 +266,7 @@ extern fn insert_text(this: &Object, _sel: Sel, string: id, _replacement_range: 
         let state_ptr: *mut c_void = *this.get_ivar("winitState");
         let state = &mut *(state_ptr as *mut ViewState);
 
-        let has_attr = msg_send![string, isKindOfClass:class("NSAttributedString")];
+        let has_attr = msg_send![string, isKindOfClass:class!(NSAttributedString)];
         let characters = if has_attr {
             // This is a *mut NSAttributedString
             msg_send![string, string]
@@ -282,7 +283,7 @@ extern fn insert_text(this: &Object, _sel: Sel, string: id, _replacement_range: 
         state.last_insert = Some(string.to_owned());
 
         // We don't need this now, but it's here if that changes.
-        //let event: id = msg_send![class("NSApp"), currentEvent];
+        //let event: id = msg_send![class!(NSApp), currentEvent];
 
         let mut events = VecDeque::with_capacity(characters.len());
         for character in string.chars() {
@@ -400,7 +401,7 @@ extern fn key_down(this: &Object, _sel: Sel, event: id) {
                 // Some keys (and only *some*, with no known reason) don't trigger `insertText`, while others do...
                 // So, we don't give repeats the opportunity to trigger that, since otherwise our hack will cause some
                 // keys to generate twice as many characters.
-                let array: id = msg_send![class("NSArray"), arrayWithObject:event];
+                let array: id = msg_send![class!(NSArray), arrayWithObject:event];
                 let (): _ = msg_send![this, interpretKeyEvents:array];
             }
         }
@@ -565,4 +566,9 @@ extern fn right_mouse_dragged(this: &Object, _sel: Sel, event: id) {
 
 extern fn other_mouse_dragged(this: &Object, _sel: Sel, event: id) {
     mouse_motion(this, event);
+}
+
+// https://github.com/chromium/chromium/blob/a86a8a6bcfa438fa3ac2eba6f02b3ad1f8e0756f/ui/views/cocoa/bridged_content_view.mm#L816
+extern fn wants_key_down_for_event(_this: &Object, _se: Sel, _event: id) -> BOOL {
+    YES
 }

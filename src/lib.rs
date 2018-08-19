@@ -54,7 +54,7 @@
 //! # Drawing on the window
 //!
 //! Winit doesn't provide any function that allows drawing on a window. However it allows you to
-//! retreive the raw handle of the window (see the `os` module for that), which in turn allows you
+//! retrieve the raw handle of the window (see the `os` module for that), which in turn allows you
 //! to create an OpenGL/Vulkan/DirectX/Metal/etc. context that will draw on the window.
 //!
 
@@ -78,13 +78,13 @@ extern crate cocoa;
 extern crate core_foundation;
 #[cfg(target_os = "macos")]
 extern crate core_graphics;
-#[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"))]
+#[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
 extern crate x11_dl;
-#[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "windows"))]
+#[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd", target_os = "windows"))]
 extern crate parking_lot;
-#[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd"))]
+#[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
 extern crate percent_encoding;
-#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "dragonfly", target_os = "openbsd"))]
+#[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
 extern crate smithay_client_toolkit as sctk;
 
 use std::time::Duration;
@@ -141,7 +141,7 @@ pub struct WindowId(platform::WindowId);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceId(platform::DeviceId);
 
-/// Provides a way to retreive events from the system and from the windows that were registered to
+/// Provides a way to retrieve events from the system and from the windows that were registered to
 /// the events loop.
 ///
 /// An `EventLoop` can be seen more or less as a "context". Calling `EventLoop::new()`

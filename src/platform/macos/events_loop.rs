@@ -180,7 +180,7 @@ impl EventLoop {
         where F: FnMut(Event),
     {
         unsafe {
-            if !msg_send![cocoa::base::class("NSThread"), isMainThread] {
+            if !msg_send![class!(NSThread), isMainThread] {
                 panic!("Events can only be polled from the main thread on macOS");
             }
         }
@@ -221,7 +221,7 @@ impl EventLoop {
         where F: FnMut(Event) -> ControlFlow
     {
         unsafe {
-            if !msg_send![cocoa::base::class("NSThread"), isMainThread] {
+            if !msg_send![class!(NSThread), isMainThread] {
                 panic!("Events can only be polled from the main thread on macOS");
             }
         }
@@ -315,6 +315,27 @@ impl EventLoop {
             });
 
         match event_type {
+            // https://github.com/glfw/glfw/blob/50eccd298a2bbc272b4977bd162d3e4b55f15394/src/cocoa_window.m#L881
+            appkit::NSKeyUp  => {
+                if let Some(key_window) = maybe_key_window() {
+                    if event_mods(ns_event).logo {
+                        let _: () = msg_send![*key_window.window, sendEvent:ns_event];
+                    }
+                }
+                None
+            },
+            // similar to above, but for `<Cmd-.>`, the keyDown is suppressed instead of the
+            // KeyUp, and the above trick does not appear to work.
+            appkit::NSKeyDown => {
+                let modifiers = event_mods(ns_event);
+                let keycode = NSEvent::keyCode(ns_event);
+                if modifiers.logo && keycode == 47 {
+                    modifier_event(ns_event, NSEventModifierFlags::NSCommandKeyMask, false)
+                        .map(into_event)
+                } else {
+                    None
+                }
+            },
             appkit::NSFlagsChanged => {
                 let mut events = std::collections::VecDeque::new();
 
@@ -674,11 +695,15 @@ pub fn event_mods(event: cocoa::base::id) -> ModifiersState {
 unsafe fn modifier_event(
     ns_event: cocoa::base::id,
     keymask: NSEventModifierFlags,
-    key_pressed: bool,
+    was_key_pressed: bool,
 ) -> Option<WindowEvent> {
-    if !key_pressed && NSEvent::modifierFlags(ns_event).contains(keymask)
-    || key_pressed && !NSEvent::modifierFlags(ns_event).contains(keymask) {
-        let state = ElementState::Released;
+    if !was_key_pressed && NSEvent::modifierFlags(ns_event).contains(keymask)
+    || was_key_pressed && !NSEvent::modifierFlags(ns_event).contains(keymask) {
+        let state = if was_key_pressed {
+            ElementState::Released
+        } else {
+            ElementState::Pressed
+        };
         let keycode = NSEvent::keyCode(ns_event);
         let scancode = keycode as u32;
         let virtual_keycode = to_virtual_key_code(keycode);
