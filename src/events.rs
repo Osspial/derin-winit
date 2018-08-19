@@ -5,7 +5,7 @@ use {DeviceId, LogicalPosition, LogicalSize, WindowId};
 
 /// Describes a generic event.
 #[derive(Clone, Debug)]
-pub enum Event {
+pub enum Event<T> {
     WindowEvent {
         window_id: WindowId,
         event: WindowEvent,
@@ -14,7 +14,7 @@ pub enum Event {
         device_id: DeviceId,
         event: DeviceEvent,
     },
-    Awakened,
+    UserEvent(T),
     /// Emitted when new events arrive from the OS to be processed.
     NewEvents(StartCause),
     /// Emitted when all of the event loop's events have been processed and control flow is about
