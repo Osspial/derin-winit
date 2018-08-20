@@ -73,7 +73,7 @@ unsafe fn unjust_window_rect(prc: &mut RECT, style: DWORD, ex_style: DWORD) -> B
 
 impl Window {
     pub fn new<T>(
-        events_loop: &EventLoop<T>,
+        event_loop: &EventLoop<T>,
         w_attr: WindowAttributes,
         pl_attr: PlatformSpecificWindowBuilderAttributes,
     ) -> Result<Window, CreationError> {
@@ -81,7 +81,17 @@ impl Window {
         // First person to remove the need for cloning here gets a cookie!
         //
         // done. you owe me -- ossi
-        unsafe { init(w_attr, pl_attr, events_loop) }
+        unsafe {
+            init(w_attr, pl_attr, event_loop).map(|win| {
+                let subclass_input = events_loop::SubclassInput {
+                    window_state: win.window_state.clone(),
+                    event_loop_runner: event_loop.runner_shared.clone(),
+                };
+
+                events_loop::subclass_window(win.window.0, subclass_input);
+                win
+            })
+        }
     }
 
     pub fn set_title(&self, text: &str) {
@@ -987,22 +997,24 @@ unsafe fn init<T>(
         let min_size = attributes.min_dimensions
             .map(|logical_size| PhysicalSize::from_logical(logical_size, dpi_factor));
         let mut window_state = events_loop::WindowState {
-            cursor: Cursor(winuser::IDC_ARROW), // use arrow by default
-            cursor_grabbed: false,
-            cursor_hidden: false,
             max_size,
             min_size,
-            mouse_in_window: false,
-            saved_window_info: None,
             dpi_factor,
-            mouse_buttons_down: 0,
-            fullscreen: attributes.fullscreen.clone(),
             window_icon,
             taskbar_icon,
+            fullscreen: attributes.fullscreen.clone(),
             decorations: attributes.decorations,
             maximized: attributes.maximized,
             resizable: attributes.resizable,
             always_on_top: attributes.always_on_top,
+
+            cursor: Cursor(winuser::IDC_ARROW), // use arrow by default
+            cursor_grabbed: false,
+            cursor_hidden: false,
+            mouse_in_window: false,
+            saved_window_info: None,
+            mouse_buttons_down: 0,
+            modal_timer_handle: 0
         };
         // Creating a mutex to track the current window state
         Arc::new(Mutex::new(window_state))
@@ -1031,13 +1043,6 @@ unsafe fn init<T>(
         win.set_fullscreen(attributes.fullscreen);
         force_window_active(win.window.0);
     }
-
-    let subclass_input = events_loop::SubclassInput {
-        window_state: win.window_state.clone(),
-        event_send: event_loop.event_send.clone()
-    };
-
-    events_loop::subclass_window(win.window.0, subclass_input);
 
     Ok(win)
 }
