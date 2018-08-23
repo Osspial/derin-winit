@@ -1,19 +1,11 @@
-use std::collections::vec_deque::IntoIter as VecDequeIter;
+use std::{fmt, error};
 
-use {
-    CreationError,
-    EventLoop,
-    Icon,
-    LogicalPosition,
-    LogicalSize,
-    MouseCursor,
-    PhysicalPosition,
-    PhysicalSize,
-    platform_impl,
-    Window,
-    WindowBuilder,
-    WindowId,
-};
+use platform_impl;
+use event_loop::EventLoop;
+use monitor::{AvailableMonitorsIter, MonitorId};
+use dpi::{LogicalPosition, LogicalSize};
+
+pub use icon::*;
 
 /// Represents a window.
 ///
@@ -35,7 +27,7 @@ use {
 /// });
 /// ```
 pub struct Window {
-    window: platform_impl::Window,
+    pub(crate) window: platform_impl::Window,
 }
 
 /// Identifier of a window. Unique for each window.
@@ -45,7 +37,7 @@ pub struct Window {
 /// Whenever you receive an event specific to a window, this event contains a `WindowId` which you
 /// can then compare to the ids of your windows.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct WindowId(platform_impl::WindowId);
+pub struct WindowId(pub(crate) platform_impl::WindowId);
 
 /// Object that allows you to build windows.
 #[derive(Clone)]
@@ -54,7 +46,7 @@ pub struct WindowBuilder {
     pub window: WindowAttributes,
 
     // Platform-specific configuration. Private.
-    platform_specific: platform_impl::PlatformSpecificWindowBuilderAttributes,
+    pub(crate) platform_specific: platform_impl::PlatformSpecificWindowBuilderAttributes,
 }
 
 /// Attributes to use when creating a window.
@@ -593,13 +585,13 @@ impl CreationError {
     }
 }
 
-impl std::fmt::Display for CreationError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+impl fmt::Display for CreationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         formatter.write_str(self.to_string())
     }
 }
 
-impl std::error::Error for CreationError {
+impl error::Error for CreationError {
     fn description(&self) -> &str {
         self.to_string()
     }
@@ -664,69 +656,5 @@ pub enum MouseCursor {
 impl Default for MouseCursor {
     fn default() -> Self {
         MouseCursor::Default
-    }
-}
-
-/// An iterator for the list of available monitors.
-// Implementation note: we retrieve the list once, then serve each element by one by one.
-// This may change in the future.
-#[derive(Debug)]
-pub struct AvailableMonitorsIter {
-    pub(crate) data: VecDequeIter<platform_impl::MonitorId>,
-}
-
-impl Iterator for AvailableMonitorsIter {
-    type Item = MonitorId;
-
-    #[inline]
-    fn next(&mut self) -> Option<MonitorId> {
-        self.data.next().map(|id| MonitorId { inner: id })
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.data.size_hint()
-    }
-}
-
-/// Identifier for a monitor.
-#[derive(Debug, Clone)]
-pub struct MonitorId {
-    pub(crate) inner: platform_impl::MonitorId
-}
-
-impl MonitorId {
-    /// Returns a human-readable name of the monitor.
-    ///
-    /// Returns `None` if the monitor doesn't exist anymore.
-    #[inline]
-    pub fn get_name(&self) -> Option<String> {
-        self.inner.get_name()
-    }
-
-    /// Returns the monitor's resolution.
-    #[inline]
-    pub fn get_dimensions(&self) -> PhysicalSize {
-        self.inner.get_dimensions()
-    }
-
-    /// Returns the top-left corner position of the monitor relative to the larger full
-    /// screen area.
-    #[inline]
-    pub fn get_position(&self) -> PhysicalPosition {
-        self.inner.get_position()
-    }
-
-    /// Returns the DPI factor that can be used to map logical pixels to physical pixels, and vice versa.
-    ///
-    /// See the [`dpi`](dpi/index.html) module for more information.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **X11:** Can be overridden using the `WINIT_HIDPI_FACTOR` environment variable.
-    /// - **Android:** Always returns 1.0.
-    #[inline]
-    pub fn get_hidpi_factor(&self) -> f64 {
-        self.inner.get_hidpi_factor()
     }
 }

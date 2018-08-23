@@ -1,3 +1,10 @@
+use std::{fmt, error};
+use std::time::Instant;
+
+use platform_impl;
+use event::Event;
+use monitor::{AvailableMonitorsIter, MonitorId};
+
 /// Provides a way to retrieve events from the system and from the windows that were registered to
 /// the events loop.
 ///
@@ -12,8 +19,8 @@
 /// `Window` created from this `EventLoop` _can_ be sent to an other thread, and the
 /// `EventLoopProxy` allows you to wakeup an `EventLoop` from an other thread.
 pub struct EventLoop<T> {
-    events_loop: platform_impl::EventLoop<T>,
-    _marker: ::std::marker::PhantomData<*mut ()> // Not Send nor Sync
+    pub(crate) events_loop: platform_impl::EventLoop<T>,
+    pub(crate) _marker: ::std::marker::PhantomData<*mut ()> // Not Send nor Sync
 }
 
 /// Returned by the user callback given to the `EventLoop::run_forever` method.
@@ -117,13 +124,13 @@ impl<T> EventLoopProxy<T> {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct EventLoopClosed;
 
-impl std::fmt::Display for EventLoopClosed {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", std::error::Error::description(self))
+impl fmt::Display for EventLoopClosed {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", error::Error::description(self))
     }
 }
 
-impl std::error::Error for EventLoopClosed {
+impl error::Error for EventLoopClosed {
     fn description(&self) -> &str {
         "Tried to wake up a closed `EventLoop`"
     }

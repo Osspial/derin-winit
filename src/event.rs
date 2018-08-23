@@ -1,7 +1,9 @@
 use std::time::Instant;
 use std::path::PathBuf;
 
-use {DeviceId, LogicalPosition, LogicalSize, WindowId};
+use dpi::{LogicalPosition, LogicalSize};
+use window::WindowId;
+use platform_impl;
 
 /// Describes a generic event.
 #[derive(Clone, Debug)]
@@ -149,7 +151,7 @@ pub enum WindowEvent {
 /// identifies its origin. Note that devices may be virtual (representing an on-screen cursor and keyboard focus) or
 /// physical. Virtual devices typically aggregate inputs from multiple physical devices.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DeviceId(platform_impl::DeviceId);
+pub struct DeviceId(pub(crate) platform_impl::DeviceId);
 
 /// Represents raw hardware events that are not associated with any particular window.
 ///
