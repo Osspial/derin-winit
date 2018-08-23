@@ -143,6 +143,14 @@ pub enum WindowEvent {
     HiDpiFactorChanged(f64),
 }
 
+/// Identifier of an input device.
+///
+/// Whenever you receive an event arising from a particular input device, this event contains a `DeviceId` which
+/// identifies its origin. Note that devices may be virtual (representing an on-screen cursor and keyboard focus) or
+/// physical. Virtual devices typically aggregate inputs from multiple physical devices.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DeviceId(platform_impl::DeviceId);
+
 /// Represents raw hardware events that are not associated with any particular window.
 ///
 /// Useful for interactions that diverge significantly from a conventional 2D GUI, such as 3D camera or first-person
