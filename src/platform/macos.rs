@@ -3,7 +3,7 @@
 use std::convert::From;
 use std::os::raw::c_void;
 use cocoa::appkit::NSApplicationActivationPolicy;
-use {LogicalSize, MonitorId, Window, WindowBuilder};
+use {LogicalSize, MonitorHandle, Window, WindowBuilder};
 
 /// Additional methods on `Window` that are specific to MacOS.
 pub trait WindowExtMacOS {
@@ -139,15 +139,15 @@ impl WindowBuilderExtMacOS for WindowBuilder {
     }
 }
 
-/// Additional methods on `MonitorId` that are specific to MacOS.
-pub trait MonitorIdExtMacOS {
+/// Additional methods on `MonitorHandle` that are specific to MacOS.
+pub trait MonitorHandleExtMacOS {
     /// Returns the identifier of the monitor for Cocoa.
     fn native_id(&self) -> u32;
     /// Returns a pointer to the NSScreen representing this monitor.
     fn get_nsscreen(&self) -> Option<*mut c_void>;
 }
 
-impl MonitorIdExtMacOS for MonitorId {
+impl MonitorHandleExtMacOS for MonitorHandle {
     #[inline]
     fn native_id(&self) -> u32 {
         self.inner.get_native_identifier()
