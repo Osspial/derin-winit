@@ -118,14 +118,14 @@ impl EventLoop {
                 sink: sink.clone(),
                 store: store.clone(),
                 seats: seats.clone(),
-                events_loop_proxy: EventsLoopProxy {
+                event_loop_proxy: EventLoopProxy {
                     display: Arc::downgrade(&display),
                     pending_wakeup: Arc::downgrade(&pending_wakeup),
                 },
             },
         ).unwrap();
 
-        Ok(EventsLoop {
+        Ok(EventLoop {
             display,
             evq: RefCell::new(event_queue),
             sink,
@@ -273,7 +273,7 @@ struct SeatManager {
     sink: Arc<Mutex<EventLoopSink>>,
     store: Arc<Mutex<WindowStore>>,
     seats: Arc<Mutex<Vec<(u32, Proxy<wl_seat::WlSeat>)>>>,
-    events_loop_proxy: EventsLoopProxy,
+    event_loop_proxy: EventLoopProxy,
 }
 
 impl Implementation<Proxy<wl_registry::WlRegistry>, GlobalEvent> for SeatManager {
@@ -297,7 +297,7 @@ impl Implementation<Proxy<wl_registry::WlRegistry>, GlobalEvent> for SeatManager
                         pointer: None,
                         keyboard: None,
                         touch: None,
-                        events_loop_proxy: self.events_loop_proxy.clone(),
+                        event_loop_proxy: self.event_loop_proxy.clone(),
                     });
                 self.store.lock().unwrap().new_seat(&seat);
                 self.seats.lock().unwrap().push((id, seat));
@@ -322,7 +322,7 @@ struct SeatData {
     pointer: Option<Proxy<wl_pointer::WlPointer>>,
     keyboard: Option<Proxy<wl_keyboard::WlKeyboard>>,
     touch: Option<Proxy<wl_touch::WlTouch>>,
-    events_loop_proxy: EventsLoopProxy,
+    event_loop_proxy: EventLoopProxy,
 }
 
 impl Implementation<Proxy<wl_seat::WlSeat>, wl_seat::Event> for SeatData {
@@ -353,7 +353,7 @@ impl Implementation<Proxy<wl_seat::WlSeat>, wl_seat::Event> for SeatData {
                     self.keyboard = Some(super::keyboard::init_keyboard(
                         seat.get_keyboard().unwrap(),
                         self.sink.clone(),
-                        self.events_loop_proxy.clone(),
+                        self.event_loop_proxy.clone(),
                     ))
                 }
                 // destroy keyboard if applicable

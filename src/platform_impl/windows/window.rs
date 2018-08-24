@@ -21,8 +21,8 @@ use dpi::{LogicalPosition, LogicalSize, PhysicalSize};
 use monitor::MonitorId as RootMonitorId;
 use platform_impl::platform::{Cursor, PlatformSpecificWindowBuilderAttributes, WindowId};
 use platform_impl::platform::dpi::{dpi_to_scale_factor, get_hwnd_dpi};
-use platform_impl::platform::events_loop::{self, EventLoop, DESTROY_MSG_ID, INITIAL_DPI_MSG_ID, REQUEST_REDRAW_NO_NEWEVENTS_MSG_ID};
-use platform_impl::platform::events_loop::WindowState;
+use platform_impl::platform::event_loop::{self, EventLoop, DESTROY_MSG_ID, INITIAL_DPI_MSG_ID, REQUEST_REDRAW_NO_NEWEVENTS_MSG_ID};
+use platform_impl::platform::event_loop::WindowState;
 use platform_impl::platform::icon::{self, IconType, WinIcon};
 use platform_impl::platform::monitor;
 use platform_impl::platform::raw_input::register_all_mice_and_keyboards_for_raw_input;
@@ -39,7 +39,7 @@ pub struct Window {
     window_state: Arc<Mutex<WindowState>>,
 
     // The events loop proxy.
-    thread_executor: events_loop::EventLoopThreadExecutor,
+    thread_executor: event_loop::EventLoopThreadExecutor,
 }
 
 // https://blogs.msdn.microsoft.com/oldnewthing/20131017-00/?p=2903
@@ -76,12 +76,12 @@ impl Window {
         // done. you owe me -- ossi
         unsafe {
             init(w_attr, pl_attr, event_loop).map(|win| {
-                let subclass_input = events_loop::SubclassInput {
+                let subclass_input = event_loop::SubclassInput {
                     window_state: win.window_state.clone(),
                     event_loop_runner: event_loop.runner_shared.clone(),
                 };
 
-                events_loop::subclass_window(win.window.0, subclass_input);
+                event_loop::subclass_window(win.window.0, subclass_input);
                 win
             })
         }
@@ -490,7 +490,7 @@ impl Window {
         if window_state.fullscreen.is_none() || window_state.saved_window_info.is_none() {
             let rect = util::get_window_rect(self.window.0).expect("`GetWindowRect` failed");
             let dpi_factor = Some(window_state.dpi_factor);
-            window_state.saved_window_info = Some(events_loop::SavedWindowInfo {
+            window_state.saved_window_info = Some(event_loop::SavedWindowInfo {
                 style: winuser::GetWindowLongW(self.window.0, winuser::GWL_STYLE),
                 ex_style: winuser::GetWindowLongW(self.window.0, winuser::GWL_EXSTYLE),
                 rect,
@@ -817,7 +817,7 @@ pub unsafe fn adjust_size(
 unsafe fn init<T>(
     mut attributes: WindowAttributes,
     mut pl_attribs: PlatformSpecificWindowBuilderAttributes,
-    event_loop: &events_loop::EventLoop<T>,
+    event_loop: &event_loop::EventLoop<T>,
 ) -> Result<Window, CreationError> {
     let title = OsStr::new(&attributes.title)
         .encode_wide()
@@ -1005,7 +1005,7 @@ unsafe fn init<T>(
             .map(|logical_size| PhysicalSize::from_logical(logical_size, dpi_factor));
         let min_size = attributes.min_dimensions
             .map(|logical_size| PhysicalSize::from_logical(logical_size, dpi_factor));
-        let mut window_state = events_loop::WindowState {
+        let mut window_state = event_loop::WindowState {
             max_size,
             min_size,
             dpi_factor,
