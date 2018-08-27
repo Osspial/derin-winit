@@ -1023,7 +1023,6 @@ unsafe fn init<T>(
             mouse_in_window: false,
             saved_window_info: None,
             mouse_buttons_down: 0,
-            modal_timer_handle: 0
         };
         // Creating a mutex to track the current window state
         Arc::new(Mutex::new(window_state))
