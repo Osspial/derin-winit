@@ -117,6 +117,12 @@ impl<T> EventLoop<T> {
             event_loop_proxy: self.event_loop.create_proxy(),
         }
     }
+
+    pub fn queue_function<F>(&self, f: F)
+        where F: 'static + FnOnce()
+    {
+        self.event_loop.queue_function(f);
+    }
 }
 
 /// Used to send custom events to `EventLoop`.

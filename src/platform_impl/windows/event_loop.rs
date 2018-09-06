@@ -159,7 +159,8 @@ impl<T> EventLoop<T> {
         let thread_id = unsafe { processthreadsapi::GetCurrentThreadId() };
         let runner_shared = Rc::new(ELRShared {
             runner: RefCell::new(None),
-            buffer: RefCell::new(VecDeque::new())
+            buffer: RefCell::new(VecDeque::new()),
+            fn_buffer: RefCell::new(VecDeque::new())
         });
         let (thread_msg_target, thread_msg_sender) = thread_event_target_window(runner_shared.clone());
 
@@ -254,6 +255,14 @@ impl<T> EventLoop<T> {
         }
     }
 
+    pub fn queue_function<F>(&self, f: F)
+        where F: 'static + FnOnce()
+    {
+        let mut f_opt = Some(f);
+        let f_mut = move || f_opt.take().expect("queued function double-call")();
+        self.runner_shared.fn_buffer.borrow_mut().push_back(Box::new(f_mut));
+    }
+
     #[inline(always)]
     pub(crate) fn create_thread_executor(&self) -> EventLoopThreadExecutor {
         EventLoopThreadExecutor {
@@ -266,7 +275,8 @@ impl<T> EventLoop<T> {
 pub(crate) type EventLoopRunnerShared<T> = Rc<ELRShared<T>>;
 pub(crate) struct ELRShared<T> {
     runner: RefCell<Option<*mut EventLoopRunner<T>>>,
-    buffer: RefCell<VecDeque<Event<T>>>
+    buffer: RefCell<VecDeque<Event<T>>>,
+    fn_buffer: RefCell<VecDeque<Box<FnMut()>>>
 }
 pub(crate) struct EventLoopRunner<T> {
     event_loop: *const EventLoop<T>,
@@ -282,6 +292,13 @@ impl<T> ELRShared<T> {
         if let Ok(runner_ref) = self.runner.try_borrow_mut() {
             if let Some(runner) = *runner_ref {
                 (*runner).process_event(event);
+                loop {
+                    let f = self.fn_buffer.borrow_mut().pop_front();
+                    match f {
+                        Some(mut f) => f(),
+                        None => break
+                    }
+                }
                 return;
             }
         }
