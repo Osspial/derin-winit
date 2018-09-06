@@ -23,6 +23,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::collections::VecDeque;
 use parking_lot::Mutex;
 
 use winapi::ctypes::c_int;
@@ -123,11 +124,7 @@ pub(crate) struct SubclassInput<T> {
 
 impl<T> SubclassInput<T> {
     unsafe fn send_event(&self, event: Event<T>) {
-        let mut runner = self.event_loop_runner.borrow_mut();
-        match *runner {
-            ELRSharedOption::Runner(runner) => (*runner).process_event(event),
-            ELRSharedOption::Buffer(ref mut buffer) => buffer.push(event)
-        }
+        self.event_loop_runner.send_event(event);
     }
 }
 
@@ -138,11 +135,7 @@ struct ThreadMsgTargetSubclassInput<T> {
 
 impl<T> ThreadMsgTargetSubclassInput<T> {
     unsafe fn send_event(&self, event: Event<T>) {
-        let mut runner = self.event_loop_runner.borrow_mut();
-        match *runner {
-            ELRSharedOption::Runner(runner) => (*runner).process_event(event),
-            ELRSharedOption::Buffer(ref mut buffer) => buffer.push(event)
-        }
+        self.event_loop_runner.send_event(event);
     }
 }
 
@@ -164,7 +157,10 @@ impl<T> EventLoop<T> {
         become_dpi_aware(dpi_aware);
 
         let thread_id = unsafe { processthreadsapi::GetCurrentThreadId() };
-        let runner_shared = Rc::new(RefCell::new(ELRSharedOption::Buffer(vec![])));
+        let runner_shared = Rc::new(ELRShared {
+            runner: RefCell::new(None),
+            buffer: RefCell::new(VecDeque::new())
+        });
         let (thread_msg_target, thread_msg_sender) = thread_event_target_window(runner_shared.clone());
 
         EventLoop {
@@ -202,15 +198,15 @@ impl<T> EventLoop<T> {
         };
         {
             let runner_shared = self.runner_shared.clone();
-            let mut runner_shared = runner_shared.borrow_mut();
-            let mut event_buffer = vec![];
-            if let ELRSharedOption::Buffer(ref mut buffer) = *runner_shared {
-                mem::swap(buffer, &mut event_buffer);
+            let mut runner_ref = runner_shared.runner.borrow_mut();
+            loop {
+                let event = runner_shared.buffer.borrow_mut().pop_front();
+                match event {
+                    Some(e) => unsafe{ runner.process_event(e); },
+                    None => break
+                }
             }
-            for event in event_buffer.drain(..) {
-                unsafe{ runner.process_event(event); }
-            }
-            *runner_shared = ELRSharedOption::Runner(&mut runner);
+            *runner_ref = Some(&mut runner);
         }
 
         unsafe {
@@ -248,7 +244,7 @@ impl<T> EventLoop<T> {
         }
 
         unsafe{ runner.call_event_handler(Event::LoopDestroyed) }
-        *self.runner_shared.borrow_mut() = ELRSharedOption::Buffer(vec![]);
+        *self.runner_shared.runner.borrow_mut() = None;
     }
 
     pub fn create_proxy(&self) -> EventLoopProxy<T> {
@@ -267,10 +263,10 @@ impl<T> EventLoop<T> {
     }
 }
 
-pub(crate) type EventLoopRunnerShared<T> = Rc<RefCell<ELRSharedOption<T>>>;
-pub(crate) enum ELRSharedOption<T> {
-    Runner(*mut EventLoopRunner<T>),
-    Buffer(Vec<Event<T>>)
+pub(crate) type EventLoopRunnerShared<T> = Rc<ELRShared<T>>;
+pub(crate) struct ELRShared<T> {
+    runner: RefCell<Option<*mut EventLoopRunner<T>>>,
+    buffer: RefCell<VecDeque<Event<T>>>
 }
 pub(crate) struct EventLoopRunner<T> {
     event_loop: *const EventLoop<T>,
@@ -279,6 +275,18 @@ pub(crate) struct EventLoopRunner<T> {
     modal_redraw_window: HWND,
     in_modal_loop: bool,
     event_handler: *mut FnMut(Event<T>, &RootEventLoop<T>, &mut ControlFlow)
+}
+
+impl<T> ELRShared<T> {
+    unsafe fn send_event(&self, event: Event<T>) {
+        if let Ok(runner_ref) = self.runner.try_borrow_mut() {
+            if let Some(runner) = *runner_ref {
+                (*runner).process_event(event);
+                return;
+            }
+        }
+        self.buffer.borrow_mut().push_back(event)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -750,15 +758,15 @@ unsafe extern "system" fn public_window_callback<T>(
 
     match msg {
         winuser::WM_ENTERSIZEMOVE => {
-            let runner = subclass_input.event_loop_runner.borrow_mut();
-            if let ELRSharedOption::Runner(runner) = *runner {
+            let runner = subclass_input.event_loop_runner.runner.borrow_mut();
+            if let Some(runner) = *runner {
                 (*runner).in_modal_loop = true;
             }
             0
         },
         winuser::WM_EXITSIZEMOVE => {
-            let runner = subclass_input.event_loop_runner.borrow_mut();
-            if let ELRSharedOption::Runner(runner) = *runner {
+            let runner = subclass_input.event_loop_runner.runner.borrow_mut();
+            if let Some(runner) = *runner {
                 (*runner).in_modal_loop = false;
             }
             0
@@ -791,8 +799,8 @@ unsafe extern "system" fn public_window_callback<T>(
 
         _ if msg == *REQUEST_REDRAW_NO_NEWEVENTS_MSG_ID => {
             use event::WindowEvent::RedrawRequested;
-            let runner = subclass_input.event_loop_runner.borrow_mut();
-            if let ELRSharedOption::Runner(runner) = *runner {
+            let runner = subclass_input.event_loop_runner.runner.borrow_mut();
+            if let Some(runner) = *runner {
                 let runner = &mut *runner;
                 match runner.runner_state {
                     RunnerState::Idle(..) |
@@ -814,8 +822,8 @@ unsafe extern "system" fn public_window_callback<T>(
 
             let mut send_event = false;
             {
-                let runner = subclass_input.event_loop_runner.borrow_mut();
-                if let ELRSharedOption::Runner(runner) = *runner {
+                let runner = subclass_input.event_loop_runner.runner.borrow_mut();
+                if let Some(runner) = *runner {
                     let runner = &mut *runner;
                     match runner.runner_state {
                         RunnerState::Idle(..) |
@@ -1519,8 +1527,8 @@ unsafe extern "system" fn thread_event_target_callback<T>(
                 );
             };
             let in_modal_loop = {
-                let runner = subclass_input.event_loop_runner.borrow_mut();
-                if let ELRSharedOption::Runner(runner) = *runner {
+                let runner = subclass_input.event_loop_runner.runner.borrow_mut();
+                if let Some(runner) = *runner {
                     (*runner).in_modal_loop
                 } else {
                     false
@@ -1554,8 +1562,8 @@ unsafe extern "system" fn thread_event_target_callback<T>(
                     }
                 }
 
-                let runner = subclass_input.event_loop_runner.borrow_mut();
-                if let ELRSharedOption::Runner(runner) = *runner {
+                let runner = subclass_input.event_loop_runner.runner.borrow_mut();
+                if let Some(runner) = *runner {
                     let runner = &mut *runner;
                     runner.events_cleared();
                     match runner.control_flow {
