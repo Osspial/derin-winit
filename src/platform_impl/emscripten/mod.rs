@@ -9,8 +9,14 @@ use std::os::raw::{c_char, c_void, c_double, c_ulong, c_int};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, Arc};
 
+use event::{
+    Event, WindowEvent, DeviceEvent, MouseButton, ElementState, TouchPhase, ModifiersState,
+    DeviceId as RootDeviceId, KeyboardInput, Touch, VirtualKeyCode
+};
+use event_loop::{self, ControlFlow};
 use dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
-use window::MonitorHandle as RootMonitorHandle;
+use window::{CreationError, WindowId as RootWindowId, WindowAttributes, MouseCursor, Icon};
+use monitor::MonitorHandle as RootMonitorHandle;
 
 const DOCUMENT_NAME: &'static str = "#document\0";
 
@@ -78,7 +84,7 @@ pub fn set_main_loop_callback<F>(callback : F) where F : FnMut() {
 pub struct EventLoopProxy;
 
 impl EventLoopProxy {
-    pub fn wakeup(&self) -> Result<(), ::EventLoopClosed> {
+    pub fn wakeup(&self) -> Result<(), event_loop::EventLoopClosed> {
         unimplemented!()
     }
 }
@@ -119,7 +125,7 @@ impl EventLoop {
     }
 
     pub fn poll_events<F>(&self, mut callback: F)
-        where F: FnMut(::Event)
+        where F: FnMut(Event)
     {
         let ref mut window = *self.window.lock().unwrap();
         if let &mut Some(ref mut window) = window {
@@ -129,8 +135,8 @@ impl EventLoop {
         }
     }
 
-    pub fn run_forever<F>(&self, mut callback: F)
-        where F: FnMut(::Event) -> ::ControlFlow
+    pub fn run_forever<F>(&self, mut callback: F) -> !
+        where F: FnMut(Event) -> ControlFlow
     {
         self.interrupted.store(false, Ordering::Relaxed);
 
@@ -143,6 +149,8 @@ impl EventLoop {
                 unsafe { ffi::emscripten_cancel_main_loop(); }
             }
         });
+
+        unreachable!()
     }
 }
 
@@ -153,7 +161,7 @@ pub struct Window2 {
     cursor_grabbed: Mutex<bool>,
     cursor_hidden: Mutex<bool>,
     is_fullscreen: bool,
-    events: Box<Mutex<VecDeque<::Event>>>,
+    events: Box<Mutex<VecDeque<Event>>>,
 }
 
 pub struct Window {
@@ -185,9 +193,9 @@ extern "C" fn mouse_callback(
     event_queue: *mut c_void) -> ffi::EM_BOOL
 {
     unsafe {
-        let queue: &Mutex<VecDeque<::Event>> = mem::transmute(event_queue);
+        let queue: &Mutex<VecDeque<Event>> = mem::transmute(event_queue);
 
-        let modifiers = ::ModifiersState {
+        let modifiers = ModifiersState {
             shift: (*event).shiftKey == ffi::EM_TRUE,
             ctrl: (*event).ctrlKey == ffi::EM_TRUE,
             alt: (*event).altKey == ffi::EM_TRUE,
@@ -201,17 +209,17 @@ extern "C" fn mouse_callback(
                     ((*event).canvasX as f64, (*event).canvasY as f64),
                     dpi_factor,
                 );
-                queue.lock().unwrap().push_back(::Event::WindowEvent {
-                    window_id: ::WindowId(WindowId(0)),
-                    event: ::WindowEvent::CursorMoved {
-                        device_id: ::DeviceId(DeviceId),
+                queue.lock().unwrap().push_back(Event::WindowEvent {
+                    window_id: RootWindowId(WindowId(0)),
+                    event: WindowEvent::CursorMoved {
+                        device_id: RootDeviceId(DeviceId),
                         position,
                         modifiers: modifiers,
                     }
                 });
-                queue.lock().unwrap().push_back(::Event::DeviceEvent {
-                    device_id: ::DeviceId(DeviceId),
-                    event: ::DeviceEvent::MouseMotion {
+                queue.lock().unwrap().push_back(Event::DeviceEvent {
+                    device_id: RootDeviceId(DeviceId),
+                    event: DeviceEvent::MouseMotion {
                         delta: ((*event).movementX as f64, (*event).movementY as f64),
                     }
                 });
@@ -219,20 +227,20 @@ extern "C" fn mouse_callback(
             mouse_input @ ffi::EMSCRIPTEN_EVENT_MOUSEDOWN |
             mouse_input @ ffi::EMSCRIPTEN_EVENT_MOUSEUP => {
                 let button = match (*event).button {
-                    0 => ::MouseButton::Left,
-                    1 => ::MouseButton::Middle,
-                    2 => ::MouseButton::Right,
-                    other => ::MouseButton::Other(other as u8),
+                    0 => MouseButton::Left,
+                    1 => MouseButton::Middle,
+                    2 => MouseButton::Right,
+                    other => MouseButton::Other(other as u8),
                 };
                 let state = match mouse_input {
-                    ffi::EMSCRIPTEN_EVENT_MOUSEDOWN => ::ElementState::Pressed,
-                    ffi::EMSCRIPTEN_EVENT_MOUSEUP => ::ElementState::Released,
+                    ffi::EMSCRIPTEN_EVENT_MOUSEDOWN => ElementState::Pressed,
+                    ffi::EMSCRIPTEN_EVENT_MOUSEUP => ElementState::Released,
                     _ => unreachable!(),
                 };
-                queue.lock().unwrap().push_back(::Event::WindowEvent {
-                    window_id: ::WindowId(WindowId(0)),
-                    event: ::WindowEvent::MouseInput {
-                        device_id: ::DeviceId(DeviceId),
+                queue.lock().unwrap().push_back(Event::WindowEvent {
+                    window_id: RootWindowId(WindowId(0)),
+                    event: WindowEvent::MouseInput {
+                        device_id: RootDeviceId(DeviceId),
                         state: state,
                         button: button,
                         modifiers: modifiers,
@@ -252,9 +260,9 @@ extern "C" fn keyboard_callback(
     event_queue: *mut c_void) -> ffi::EM_BOOL
 {
     unsafe {
-        let queue: &Mutex<VecDeque<::Event>> = mem::transmute(event_queue);
+        let queue: &Mutex<VecDeque<Event>> = mem::transmute(event_queue);
 
-        let modifiers = ::ModifiersState {
+        let modifiers = ModifiersState {
             shift: (*event).shiftKey == ffi::EM_TRUE,
             ctrl: (*event).ctrlKey == ffi::EM_TRUE,
             alt: (*event).altKey == ffi::EM_TRUE,
@@ -263,13 +271,13 @@ extern "C" fn keyboard_callback(
 
         match event_type {
             ffi::EMSCRIPTEN_EVENT_KEYDOWN => {
-                queue.lock().unwrap().push_back(::Event::WindowEvent {
-                    window_id: ::WindowId(WindowId(0)),
-                    event: ::WindowEvent::KeyboardInput {
-                        device_id: ::DeviceId(DeviceId),
-                        input: ::KeyboardInput {
+                queue.lock().unwrap().push_back(Event::WindowEvent {
+                    window_id: RootWindowId(WindowId(0)),
+                    event: WindowEvent::KeyboardInput {
+                        device_id: RootDeviceId(DeviceId),
+                        input: KeyboardInput {
                             scancode: key_translate((*event).key) as u32,
-                            state: ::ElementState::Pressed,
+                            state: ElementState::Pressed,
                             virtual_keycode: key_translate_virt((*event).key, (*event).location),
                             modifiers,
                         },
@@ -277,13 +285,13 @@ extern "C" fn keyboard_callback(
                 });
             },
             ffi::EMSCRIPTEN_EVENT_KEYUP => {
-                queue.lock().unwrap().push_back(::Event::WindowEvent {
-                    window_id: ::WindowId(WindowId(0)),
-                    event: ::WindowEvent::KeyboardInput {
-                        device_id: ::DeviceId(DeviceId),
-                        input: ::KeyboardInput {
+                queue.lock().unwrap().push_back(Event::WindowEvent {
+                    window_id: RootWindowId(WindowId(0)),
+                    event: WindowEvent::KeyboardInput {
+                        device_id: RootDeviceId(DeviceId),
+                        input: KeyboardInput {
                             scancode: key_translate((*event).key) as u32,
-                            state: ::ElementState::Released,
+                            state: ElementState::Released,
                             virtual_keycode: key_translate_virt((*event).key, (*event).location),
                             modifiers,
                         },
@@ -303,13 +311,13 @@ extern fn touch_callback(
     event_queue: *mut c_void) -> ffi::EM_BOOL
 {
     unsafe {
-        let queue: &Mutex<VecDeque<::Event>> = mem::transmute(event_queue);
+        let queue: &Mutex<VecDeque<Event>> = mem::transmute(event_queue);
 
         let phase = match event_type {
-            ffi::EMSCRIPTEN_EVENT_TOUCHSTART => ::TouchPhase::Started,
-            ffi::EMSCRIPTEN_EVENT_TOUCHEND => ::TouchPhase::Ended,
-            ffi::EMSCRIPTEN_EVENT_TOUCHMOVE => ::TouchPhase::Moved,
-            ffi::EMSCRIPTEN_EVENT_TOUCHCANCEL => ::TouchPhase::Cancelled,
+            ffi::EMSCRIPTEN_EVENT_TOUCHSTART => TouchPhase::Started,
+            ffi::EMSCRIPTEN_EVENT_TOUCHEND => TouchPhase::Ended,
+            ffi::EMSCRIPTEN_EVENT_TOUCHMOVE => TouchPhase::Moved,
+            ffi::EMSCRIPTEN_EVENT_TOUCHCANCEL => TouchPhase::Cancelled,
             _ => return ffi::EM_FALSE,
         };
 
@@ -321,10 +329,10 @@ extern fn touch_callback(
                     (touch.canvasX as f64, touch.canvasY as f64),
                     dpi_factor,
                 );
-                queue.lock().unwrap().push_back(::Event::WindowEvent {
-                    window_id: ::WindowId(WindowId(0)),
-                    event: ::WindowEvent::Touch(::Touch {
-                        device_id: ::DeviceId(DeviceId),
+                queue.lock().unwrap().push_back(Event::WindowEvent {
+                    window_id: RootWindowId(WindowId(0)),
+                    event: WindowEvent::Touch(Touch {
+                        device_id: RootDeviceId(DeviceId),
                         phase,
                         id: touch.identifier as u64,
                         location,
@@ -366,12 +374,12 @@ fn em_try(res: ffi::EMSCRIPTEN_RESULT) -> Result<(), String> {
 }
 
 impl Window {
-    pub fn new(event_loop: &EventLoop, attribs: ::WindowAttributes,
+    pub fn new(event_loop: &EventLoop, attribs: WindowAttributes,
                _pl_attribs: PlatformSpecificWindowBuilderAttributes)
-        -> Result<Window, ::CreationError>
+        -> Result<Window, CreationError>
     {
         if event_loop.window.lock().unwrap().is_some() {
-            return Err(::CreationError::OsError("Cannot create another window".to_owned()));
+            return Err(CreationError::OsError("Cannot create another window".to_owned()));
         }
 
         let w = Window2 {
@@ -389,31 +397,31 @@ impl Window {
         // TODO: set up more event callbacks
         unsafe {
             em_try(ffi::emscripten_set_mousemove_callback(DOCUMENT_NAME.as_ptr() as *const c_char, mem::transmute(&*window.window.events), ffi::EM_FALSE, Some(mouse_callback)))
-                .map_err(|e| ::CreationError::OsError(format!("emscripten error: {}", e)))?;
+                .map_err(|e| CreationError::OsError(format!("emscripten error: {}", e)))?;
             em_try(ffi::emscripten_set_mousedown_callback(DOCUMENT_NAME.as_ptr() as *const c_char, mem::transmute(&*window.window.events), ffi::EM_FALSE, Some(mouse_callback)))
-                .map_err(|e| ::CreationError::OsError(format!("emscripten error: {}", e)))?;
+                .map_err(|e| CreationError::OsError(format!("emscripten error: {}", e)))?;
             em_try(ffi::emscripten_set_mouseup_callback(DOCUMENT_NAME.as_ptr() as *const c_char, mem::transmute(&*window.window.events), ffi::EM_FALSE, Some(mouse_callback)))
-                .map_err(|e| ::CreationError::OsError(format!("emscripten error: {}", e)))?;
+                .map_err(|e| CreationError::OsError(format!("emscripten error: {}", e)))?;
             em_try(ffi::emscripten_set_keydown_callback(DOCUMENT_NAME.as_ptr() as *const c_char, mem::transmute(&*window.window.events), ffi::EM_FALSE, Some(keyboard_callback)))
-                .map_err(|e| ::CreationError::OsError(format!("emscripten error: {}", e)))?;
+                .map_err(|e| CreationError::OsError(format!("emscripten error: {}", e)))?;
             em_try(ffi::emscripten_set_keyup_callback(DOCUMENT_NAME.as_ptr() as *const c_char, mem::transmute(&*window.window.events), ffi::EM_FALSE, Some(keyboard_callback)))
-                .map_err(|e| ::CreationError::OsError(format!("emscripten error: {}", e)))?;
+                .map_err(|e| CreationError::OsError(format!("emscripten error: {}", e)))?;
             em_try(ffi::emscripten_set_touchstart_callback(DOCUMENT_NAME.as_ptr() as *const c_char, mem::transmute(&*window.window.events), ffi::EM_FALSE, Some(touch_callback)))
-                .map_err(|e| ::CreationError::OsError(format!("emscripten error: {}", e)))?;
+                .map_err(|e| CreationError::OsError(format!("emscripten error: {}", e)))?;
             em_try(ffi::emscripten_set_touchend_callback(DOCUMENT_NAME.as_ptr() as *const c_char, mem::transmute(&*window.window.events), ffi::EM_FALSE, Some(touch_callback)))
-                .map_err(|e| ::CreationError::OsError(format!("emscripten error: {}", e)))?;
+                .map_err(|e| CreationError::OsError(format!("emscripten error: {}", e)))?;
             em_try(ffi::emscripten_set_touchmove_callback(DOCUMENT_NAME.as_ptr() as *const c_char, mem::transmute(&*window.window.events), ffi::EM_FALSE, Some(touch_callback)))
-                .map_err(|e| ::CreationError::OsError(format!("emscripten error: {}", e)))?;
+                .map_err(|e| CreationError::OsError(format!("emscripten error: {}", e)))?;
             em_try(ffi::emscripten_set_touchcancel_callback(DOCUMENT_NAME.as_ptr() as *const c_char, mem::transmute(&*window.window.events), ffi::EM_FALSE, Some(touch_callback)))
-                .map_err(|e| ::CreationError::OsError(format!("emscripten error: {}", e)))?;
+                .map_err(|e| CreationError::OsError(format!("emscripten error: {}", e)))?;
         }
 
         if attribs.fullscreen.is_some() {
             unsafe {
                 em_try(ffi::emscripten_request_fullscreen(ptr::null(), ffi::EM_TRUE))
-                    .map_err(|e| ::CreationError::OsError(e))?;
+                    .map_err(|e| CreationError::OsError(e))?;
                 em_try(ffi::emscripten_set_fullscreenchange_callback(ptr::null(), 0 as *mut c_void, ffi::EM_FALSE, Some(fullscreen_callback)))
-                    .map_err(|e| ::CreationError::OsError(e))?;
+                    .map_err(|e| CreationError::OsError(e))?;
             }
         } else if let Some(size) = attribs.dimensions {
             window.set_inner_size(size);
@@ -510,7 +518,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_cursor(&self, _cursor: ::MouseCursor) {
+    pub fn set_cursor(&self, _cursor: MouseCursor) {
         // N/A
     }
 
@@ -569,7 +577,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_fullscreen(&self, _monitor: Option<::MonitorHandle>) {
+    pub fn set_fullscreen(&self, _monitor: Option<RootMonitorHandle>) {
         // iOS has single screen maximized apps so nothing to do
     }
 
@@ -584,7 +592,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_window_icon(&self, _icon: Option<::Icon>) {
+    pub fn set_window_icon(&self, _icon: Option<Icon>) {
         // N/A
     }
 
@@ -669,7 +677,7 @@ fn key_translate(input: [ffi::EM_UTF8; ffi::EM_HTML5_SHORT_STRING_LEN_BYTES]) ->
 }
 
 fn key_translate_virt(input: [ffi::EM_UTF8; ffi::EM_HTML5_SHORT_STRING_LEN_BYTES],
-                      location: c_ulong) -> Option<::VirtualKeyCode>
+                      location: c_ulong) -> Option<VirtualKeyCode>
 {
     let slice = &input[0..input.iter().take_while(|x| **x != 0).count()];
     let maybe_key = unsafe { str::from_utf8(mem::transmute::<_, &[u8]>(slice)) };
@@ -677,7 +685,7 @@ fn key_translate_virt(input: [ffi::EM_UTF8; ffi::EM_HTML5_SHORT_STRING_LEN_BYTES
         Ok(key) => key,
         Err(_) => { return None; },
     };
-    use VirtualKeyCode::*;
+    use event::VirtualKeyCode::*;
     match key {
         "Alt" => match location {
             ffi::DOM_KEY_LOCATION_LEFT => Some(LAlt),
