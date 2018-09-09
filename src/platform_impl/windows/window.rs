@@ -420,6 +420,7 @@ impl Window {
         let window_state_lock = self.window_state.lock();
         // We don't want to increment/decrement the display count more than once!
         if hide == window_state_lock.cursor_hidden { return; }
+        drop(window_state_lock);
         let (tx, rx) = channel();
         let window_state = Arc::clone(&self.window_state);
         self.thread_executor.execute_in_thread(move || {
@@ -427,7 +428,6 @@ impl Window {
             window_state.lock().cursor_hidden = hide;
             let _ = tx.send(());
         });
-        drop(window_state_lock);
         rx.recv().unwrap()
     }
 
@@ -579,7 +579,6 @@ impl Window {
 
     #[inline]
     pub fn set_fullscreen(&self, monitor: Option<RootMonitorHandle>) {
-        let mut window_state_lock = self.window_state.lock();
         unsafe {
             match &monitor {
                 &Some(RootMonitorHandle { ref inner }) => {
@@ -588,7 +587,7 @@ impl Window {
                     let window = self.window.clone();
                     let window_state = Arc::clone(&self.window_state);
 
-                    let (style, ex_style) = self.set_fullscreen_style(&mut window_state_lock);
+                    let (style, ex_style) = self.set_fullscreen_style(&mut window_state.lock());
                     self.thread_executor.execute_in_thread(move || {
                         let _ = Self::grab_cursor_inner(&window, false);
 
@@ -628,12 +627,12 @@ impl Window {
                     });
                 }
                 &None => {
-                    self.restore_saved_window(&mut window_state_lock);
+                    self.restore_saved_window(&mut self.window_state.lock());
                 }
             }
         }
 
-        window_state_lock.fullscreen = monitor;
+        self.window_state.lock().fullscreen = monitor;
     }
 
     #[inline]
