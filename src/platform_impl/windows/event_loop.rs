@@ -289,9 +289,12 @@ pub(crate) struct EventLoopRunner<T> {
 
 impl<T> ELRShared<T> {
     unsafe fn send_event(&self, event: Event<T>) {
+        let mut event = Some(event);
         if let Ok(runner_ref) = self.runner.try_borrow_mut() {
             if let Some(runner) = *runner_ref {
-                (*runner).process_event(event);
+                (*runner).process_event(event.take().unwrap());
+            }
+        }
                 loop {
                     let f = self.fn_buffer.borrow_mut().pop_front();
                     match f {
@@ -299,11 +302,10 @@ impl<T> ELRShared<T> {
                         None => break
                     }
                 }
-                return;
-            }
-        }
+        if let Some(event) = event {
         self.buffer.borrow_mut().push_back(event)
     }
+}
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
