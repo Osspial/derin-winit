@@ -63,7 +63,7 @@ use platform::platform::event::{handle_extended_keys, process_key_params, vkey_t
 use platform::platform::icon::WinIcon;
 use platform::platform::raw_input::{get_raw_input_data, get_raw_mouse_button_state};
 use platform::platform::window::adjust_size;
-use platform::platform::window_state::WindowState;
+use platform::platform::window_state::{CursorFlags, WindowState};
 
 /// Dummy object that allows inserting a window's state.
 // We store a pointer in order to !impl Send and Sync.
@@ -612,8 +612,8 @@ unsafe fn callback_inner(
                 if let Some(context_stash) = context_stash.as_mut() {
                     if let Some(w) = context_stash.windows.get_mut(&window) {
                         let mut w = w.lock().unwrap();
-                        if !w.mouse_in_window {
-                            w.mouse_in_window = true;
+                        if !w.mouse.cursor_flags().contains(CursorFlags::IN_WINDOW) {
+                            w.mouse.set_cursor_flags(window, |f| *f |= CursorFlags::IN_WINDOW);
                             return true;
                         }
                     }
@@ -657,8 +657,8 @@ unsafe fn callback_inner(
                 if let Some(context_stash) = context_stash.as_mut() {
                     if let Some(w) = context_stash.windows.get_mut(&window) {
                         let mut w = w.lock().unwrap();
-                        if w.mouse_in_window {
-                            w.mouse_in_window = false;
+                        if !w.mouse.cursor_flags().contains(CursorFlags::IN_WINDOW) {
+                            w.mouse.set_cursor_flags(window, |f| f.set(CursorFlags::IN_WINDOW, false));
                             return true;
                         }
                     }
@@ -1054,10 +1054,10 @@ unsafe fn callback_inner(
                     .and_then(|cstash| cstash.windows.get(&window))
                     .map(|window_state_mutex| {
                         let window_state = window_state_mutex.lock().unwrap();
-                        if window_state.mouse_in_window {
+                        if window_state.mouse.cursor_flags().contains(CursorFlags::IN_WINDOW) {
                             let cursor = winuser::LoadCursorW(
                                 ptr::null_mut(),
-                                window_state.cursor.0,
+                                window_state.mouse.cursor.to_windows_cursor(),
                             );
                             winuser::SetCursor(cursor);
                             false
@@ -1094,10 +1094,12 @@ unsafe fn callback_inner(
                             let style = winuser::GetWindowLongA(window, winuser::GWL_STYLE) as DWORD;
                             let ex_style = winuser::GetWindowLongA(window, winuser::GWL_EXSTYLE) as DWORD;
                             if let Some(min_size) = window_state.min_size {
+                                let min_size = min_size.to_physical(window_state.dpi_factor);
                                 let (width, height) = adjust_size(min_size, style, ex_style);
                                 (*mmi).ptMinTrackSize = POINT { x: width as i32, y: height as i32 };
                             }
                             if let Some(max_size) = window_state.max_size {
+                                let max_size = max_size.to_physical(window_state.dpi_factor);
                                 let (width, height) = adjust_size(max_size, style, ex_style);
                                 (*mmi).ptMaxTrackSize = POINT { x: width as i32, y: height as i32 };
                             }

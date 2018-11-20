@@ -1,6 +1,8 @@
+use {MouseCursor, WindowAttributes};
+use std::io;
 use dpi::LogicalSize;
 use platform::platform::icon::WinIcon;
-use platform::platform::Cursor;
+use platform::platform::{util, Cursor};
 use winapi::shared::windef::{RECT, HWND};
 use winapi::shared::minwindef::DWORD;
 use winapi::um::winnt::LONG;
@@ -18,10 +20,10 @@ pub struct WindowState {
     pub window_icon: Option<WinIcon>,
     pub taskbar_icon: Option<WinIcon>,
 
-    pub saved_window: SavedWindow,
+    pub saved_window: Option<SavedWindow>,
     pub dpi_factor: f64,
 
-    pub fullscreen: Option<::MonitorId>,
+    fullscreen: Option<::MonitorId>,
     window_flags: WindowFlags,
 }
 
@@ -33,9 +35,8 @@ pub struct SavedWindow {
 
 #[derive(Clone)]
 pub struct MouseProperties {
-    /// Cursor to set at the next `WM_SETCURSOR` event received.
-    pub cursor: Cursor,
-    pub flags: CursorFlags,
+    pub cursor: MouseCursor,
+    cursor_flags: CursorFlags,
 }
 
 bitflags! {
@@ -70,8 +71,45 @@ bitflags! {
 }
 
 impl WindowState {
+    pub fn new(
+        attributes: &WindowAttributes,
+        window_icon: Option<WinIcon>,
+        taskbar_icon: Option<WinIcon>,
+        dpi_factor: f64
+    ) -> WindowState {
+        WindowState {
+            mouse: MouseProperties {
+                cursor: MouseCursor::default(),
+                cursor_flags: CursorFlags::empty(),
+            },
+
+            min_size: attributes.min_dimensions,
+            max_size: attributes.max_dimensions,
+
+            window_icon,
+            taskbar_icon,
+
+            saved_window: None,
+            dpi_factor,
+
+            fullscreen: None,
+            window_flags: WindowFlags::empty()
+        }
+    }
+
     pub fn window_flags(&self) -> WindowFlags {
         self.window_flags
+    }
+
+    pub fn fullscreen(&self) -> &Option<::MonitorId> {
+        &self.fullscreen
+    }
+
+    pub fn set_fullscreen(&mut self, window: HWND, fullscreen: Option<::MonitorId>) {
+        self.fullscreen = fullscreen;
+
+        // Update the FULLSCREEN flag
+        self.set_window_flags(window, |_| ());
     }
 
     pub fn set_window_flags<F>(&mut self, window: HWND, f: F)
@@ -79,17 +117,36 @@ impl WindowState {
     {
         let old_flags = self.window_flags;
         f(&mut self.window_flags);
-        if self.fullscreen.is_some() {
-            self.window_flags |= WindowFlags::FULLSCREEN;
-        } else {
-            self.window_flags &= !WindowFlags::FULLSCREEN;
-        }
+        self.window_flags.set(WindowFlags::FULLSCREEN, self.fullscreen.is_some());
 
         old_flags.apply_diff(self.window_flags, window);
     }
+}
 
-    pub fn refresh_window_flags(&mut self, window: HWND) {
-        self.set_window_flags(window, |_| ());
+impl MouseProperties {
+    pub fn cursor_flags(&self) -> CursorFlags {
+        self.cursor_flags
+    }
+
+    pub fn set_cursor_flags<F>(&mut self, window: HWND, f: F) -> Result<(), io::Error>
+        where F: FnOnce(&mut CursorFlags)
+    {
+        let old_flags = self.cursor_flags;
+        f(&mut self.cursor_flags);
+        match self.cursor_flags.refresh_os_cursor(window) {
+            Ok(()) => (),
+            Err(e) => {
+                self.cursor_flags = old_flags;
+                return Err(e);
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn refresh_os_cursor(&self, window: HWND) -> Result<(), io::Error> {
+        self.cursor_flags.refresh_os_cursor(window)?;
+        Ok(())
     }
 }
 
@@ -122,9 +179,9 @@ impl WindowFlags {
         if self.contains(WindowFlags::ON_TASKBAR) {
             style_ex |= WS_EX_APPWINDOW;
         }
-        if self.contains(WindowFlags::ALWAYS_ON_TOP) {
-            style_ex | WS_EX_TOPMOST;
-        }
+        // if self.contains(WindowFlags::ALWAYS_ON_TOP) {
+        //     // Handled with SetWindowPos in apply_diff
+        // }
         if self.contains(WindowFlags::NO_BACK_BUFFER) {
             style_ex |= WS_EX_NOREDIRECTIONBITMAP;
         }
@@ -183,5 +240,53 @@ impl WindowFlags {
                 );
             }
         }
+        if diff.contains(WindowFlags::ALWAYS_ON_TOP) {
+            unsafe {
+                winuser::SetWindowPos(
+                    window,
+                    match new.contains(WindowFlags::ALWAYS_ON_TOP) {
+                        true  => winuser::HWND_TOPMOST,
+                        false => winuser::HWND_NOTOPMOST,
+                    },
+                    0,
+                    0,
+                    0,
+                    0,
+                    winuser::SWP_ASYNCWINDOWPOS | winuser::SWP_NOMOVE | winuser::SWP_NOSIZE,
+                );
+                winuser::UpdateWindow(window);
+            }
+        }
+        unsafe {
+            winuser::SetWindowPos(
+                window,
+                ::std::ptr::null_mut(),
+                0, 0, 0, 0,
+                winuser::SWP_NOMOVE | winuser::SWP_NOSIZE | winuser::SWP_NOZORDER | winuser::SWP_NOREDRAW | winuser::SWP_FRAMECHANGED
+            );
+        }
+    }
+}
+
+impl CursorFlags {
+    fn refresh_os_cursor(self, window: HWND) -> Result<(), io::Error> {
+        let client_rect = util::get_client_rect(window)?;
+
+        if util::is_focused(window) {
+            if self.contains(CursorFlags::GRABBED) {
+                util::set_cursor_clip(Some(client_rect))?;
+            } else {
+                util::set_cursor_clip(None);
+            }
+        }
+
+        let cursor_in_client = util::get_cursor_pos()
+            .map(|pos| util::rect_contains(client_rect, pos))
+            .unwrap_or(false);
+        if cursor_in_client {
+            util::set_cursor_hidden(self.contains(CursorFlags::HIDDEN));
+        }
+
+        Ok(())
     }
 }
