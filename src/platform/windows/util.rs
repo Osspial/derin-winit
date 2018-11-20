@@ -68,6 +68,17 @@ pub fn get_client_rect(hwnd: HWND) -> Option<RECT> {
     }) }
 }
 
+pub fn adjust_window_rect(hwnd: HWND, rect: RECT) -> Option<RECT> {
+    unsafe { status_map(|r| {
+        *r = rect;
+        let style = winuser::GetWindowLongW(hwnd, winuser::GWL_STYLE);
+        let style_ex = winuser::GetWindowLongW(hwnd, winuser::GWL_EXSTYLE);
+        let b_menu = !winuser::GetMenu(hwnd).is_null() as BOOL;
+
+        winuser::AdjustWindowRectEx(r, style as _ , b_menu, style_ex as _)
+    }) }
+}
+
 // This won't be needed anymore if we just add a derive to winapi.
 pub fn rect_eq(a: &RECT, b: &RECT) -> bool {
     let left_eq = a.left == b.left;

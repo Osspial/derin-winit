@@ -33,7 +33,7 @@ use platform::platform::icon::{self, IconType, WinIcon};
 use platform::platform::monitor::get_available_monitors;
 use platform::platform::raw_input::register_all_mice_and_keyboards_for_raw_input;
 use platform::platform::util;
-use platform::platform::window_state::WindowState;
+use platform::platform::window_state::{WindowFlags, WindowState};
 
 const WS_RESIZABLE: DWORD = winuser::WS_SIZEBOX | winuser::WS_MAXIMIZEBOX;
 
@@ -182,16 +182,16 @@ impl Window {
 
     pub(crate) fn set_inner_size_physical(&self, x: u32, y: u32) {
         unsafe {
-            let mut rect = RECT {
-                top: 0,
-                left: 0,
-                bottom: y as LONG,
-                right: x as LONG,
-            };
-            let dw_style = winuser::GetWindowLongA(self.window.0, winuser::GWL_STYLE) as DWORD;
-            let b_menu = !winuser::GetMenu(self.window.0).is_null() as BOOL;
-            let dw_style_ex = winuser::GetWindowLongA(self.window.0, winuser::GWL_EXSTYLE) as DWORD;
-            winuser::AdjustWindowRectEx(&mut rect, dw_style, b_menu, dw_style_ex);
+            let rect = util::adjust_window_rect(
+                self.window.0,
+                RECT {
+                    top: 0,
+                    left: 0,
+                    bottom: y as LONG,
+                    right: x as LONG,
+                }
+            ).expect("adjust_window_rect failed");
+
             let outer_x = (rect.right - rect.left).abs() as c_int;
             let outer_y = (rect.top - rect.bottom).abs() as c_int;
             winuser::SetWindowPos(
@@ -252,24 +252,7 @@ impl Window {
     #[inline]
     pub fn set_resizable(&self, resizable: bool) {
         let mut window_state = self.window_state.lock().unwrap();
-        if mem::replace(&mut window_state.resizable, resizable) != resizable {
-            // If we're in fullscreen, update stored configuration but don't apply anything.
-            if window_state.fullscreen.is_none() {
-                let mut style = unsafe {
-                    winuser::GetWindowLongW(self.window.0, winuser::GWL_STYLE)
-                };
-
-                if resizable {
-                    style |= WS_RESIZABLE as LONG;
-                } else {
-                    style &= !WS_RESIZABLE as LONG;
-                }
-
-                unsafe {
-                    winuser::SetWindowLongW(self.window.0, winuser::GWL_STYLE, style as _);
-                };
-            }
-        }
+        window_state.set_window_flags(self.window.0, |f| f.set(WindowFlags::RESIZABLE, resizable));
     }
 
     /// Returns the `hwnd` of this window.
@@ -301,7 +284,7 @@ impl Window {
             MouseCursor::Help => winuser::IDC_HELP,
             _ => winuser::IDC_ARROW, // use arrow for the missing cases.
         });
-        self.window_state.lock().unwrap().cursor = cursor_id;
+        self.window_state.lock().unwrap().mouse.cursor = cursor_id;
         self.events_loop_proxy.execute_in_thread(move |_| unsafe {
             let cursor = winuser::LoadCursorW(
                 ptr::null_mut(),
@@ -358,7 +341,7 @@ impl Window {
     pub fn grab_cursor(&self, grab: bool) -> Result<(), String> {
         let currently_grabbed = unsafe { self.cursor_is_grabbed() }?;
         let window_state_lock = self.window_state.lock().unwrap();
-        if currently_grabbed == grab && grab == window_state_lock.cursor_grabbed {
+        if currently_grabbed == grab && grab == window_state_lock.mouse.cursor_grabbed {
             return Ok(());
         }
         let window = self.window.clone();
@@ -367,7 +350,7 @@ impl Window {
         self.events_loop_proxy.execute_in_thread(move |_| {
             let result = unsafe { Self::grab_cursor_inner(&window, grab) };
             if result.is_ok() {
-                window_state.lock().unwrap().cursor_grabbed = grab;
+                window_state.lock().unwrap().mouse.cursor_grabbed = grab;
             }
             let _ = tx.send(result);
         });
@@ -451,27 +434,11 @@ impl Window {
         }
     }
 
-    unsafe fn set_fullscreen_style(&self, window_state: &mut WindowState) -> (LONG, LONG) {
-        if window_state.fullscreen.is_none() || window_state.saved_window_info.is_none() {
-            let client_rect = util::get_client_rect(self.window.0).expect("client rect retrieval failed");
-            let dpi_factor = Some(window_state.dpi_factor);
-            window_state.saved_window_info = Some(SavedWindowInfo {
-                style: winuser::GetWindowLongW(self.window.0, winuser::GWL_STYLE),
-                ex_style: winuser::GetWindowLongW(self.window.0, winuser::GWL_EXSTYLE),
-                client_rect,
-                is_fullscreen: true,
-                dpi_factor,
-            });
-        }
+    fn adjust_window_rect(&self, mut rect: RECT) -> RECT {
+        let mut style = winuser::GetWindowLongW(self.window.0, winuser::GWL_STYLE);
+        let mut ex_style = winuser::GetWindowLongW(self.window.0, winuser::GWL_EXSTYLE);
 
-        // We sync the system maximized state here, it will be used when restoring
-        let mut placement: winuser::WINDOWPLACEMENT = mem::zeroed();
-        placement.length = mem::size_of::<winuser::WINDOWPLACEMENT>() as u32;
-        winuser::GetWindowPlacement(self.window.0, &mut placement);
-        window_state.maximized = placement.showCmd == (winuser::SW_SHOWMAXIMIZED as u32);
-        let saved_window_info = window_state.saved_window_info.as_ref().unwrap();
-
-        (saved_window_info.style, saved_window_info.ex_style)
+        winuser::AdjustWindowRectEx
     }
 
     unsafe fn restore_saved_window(&self, window_state_lock: &mut WindowState) {
