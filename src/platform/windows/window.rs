@@ -29,11 +29,11 @@ use {
 use platform::platform::{Cursor, PlatformSpecificWindowBuilderAttributes, WindowId};
 use platform::platform::dpi::{dpi_to_scale_factor, get_hwnd_dpi};
 use platform::platform::events_loop::{self, EventsLoop, DESTROY_MSG_ID, INITIAL_DPI_MSG_ID};
-use platform::platform::events_loop::WindowState;
 use platform::platform::icon::{self, IconType, WinIcon};
 use platform::platform::monitor::get_available_monitors;
 use platform::platform::raw_input::register_all_mice_and_keyboards_for_raw_input;
 use platform::platform::util;
+use platform::platform::window_state::WindowState;
 
 const WS_RESIZABLE: DWORD = winuser::WS_SIZEBOX | winuser::WS_MAXIMIZEBOX;
 
@@ -432,23 +432,21 @@ impl Window {
     #[inline]
     pub fn set_maximized(&self, maximized: bool) {
         let mut window_state = self.window_state.lock().unwrap();
-        if mem::replace(&mut window_state.maximized, maximized) != maximized {
-            // We only maximize if we're not in fullscreen.
-            if window_state.fullscreen.is_none() {
-                let window = self.window.clone();
-                unsafe {
-                    // `ShowWindow` resizes the window, so it must be called from the main thread.
-                    self.events_loop_proxy.execute_in_thread(move |_| {
-                        winuser::ShowWindow(
-                            window.0,
-                            if maximized {
-                                winuser::SW_MAXIMIZE
-                            } else {
-                                winuser::SW_RESTORE
-                            },
-                        );
-                    });
-                }
+        // We only maximize if we're not in fullscreen.
+        if window_state.fullscreen.is_none() {
+            let window = self.window.clone();
+            unsafe {
+                // `ShowWindow` resizes the window, so it must be called from the main thread.
+                self.events_loop_proxy.execute_in_thread(move |_| {
+                    winuser::ShowWindow(
+                        window.0,
+                        if maximized {
+                            winuser::SW_MAXIMIZE
+                        } else {
+                            winuser::SW_RESTORE
+                        },
+                    );
+                });
             }
         }
     }
@@ -457,7 +455,7 @@ impl Window {
         if window_state.fullscreen.is_none() || window_state.saved_window_info.is_none() {
             let client_rect = util::get_client_rect(self.window.0).expect("client rect retrieval failed");
             let dpi_factor = Some(window_state.dpi_factor);
-            window_state.saved_window_info = Some(events_loop::SavedWindowInfo {
+            window_state.saved_window_info = Some(SavedWindowInfo {
                 style: winuser::GetWindowLongW(self.window.0, winuser::GWL_STYLE),
                 ex_style: winuser::GetWindowLongW(self.window.0, winuser::GWL_EXSTYLE),
                 client_rect,
@@ -610,7 +608,9 @@ impl Window {
     #[inline]
     pub fn set_decorations(&self, decorations: bool) {
         let mut window_state = self.window_state.lock().unwrap();
-        if mem::replace(&mut window_state.decorations, decorations) != decorations {
+        if window_state.decorations != decorations {
+            window_state.decorations = decorations;
+
             let style_flags = (winuser::WS_CAPTION | winuser::WS_THICKFRAME) as LONG;
             let ex_style_flags = (winuser::WS_EX_WINDOWEDGE) as LONG;
 
@@ -971,7 +971,7 @@ unsafe fn init(
             .map(|logical_size| PhysicalSize::from_logical(logical_size, dpi_factor));
         let min_size = attributes.min_dimensions
             .map(|logical_size| PhysicalSize::from_logical(logical_size, dpi_factor));
-        let mut window_state = events_loop::WindowState {
+        let mut window_state = WindowState {
             cursor: Cursor(winuser::IDC_ARROW), // use arrow by default
             cursor_grabbed: false,
             cursor_hidden: false,

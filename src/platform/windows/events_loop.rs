@@ -63,61 +63,7 @@ use platform::platform::event::{handle_extended_keys, process_key_params, vkey_t
 use platform::platform::icon::WinIcon;
 use platform::platform::raw_input::{get_raw_input_data, get_raw_mouse_button_state};
 use platform::platform::window::adjust_size;
-
-/// Contains saved window info for switching between fullscreen
-#[derive(Clone)]
-pub struct SavedWindowInfo {
-    /// Window style
-    pub style: LONG,
-    /// Window ex-style
-    pub ex_style: LONG,
-    /// Window position and size
-    pub client_rect: RECT,
-    // Since a window can be fullscreened to a different monitor, a DPI change can be triggered. This could result in
-    // the window being automitcally resized to smaller/larger than it was supposed to be restored to, so we thus must
-    // check if the post-fullscreen DPI matches the pre-fullscreen DPI.
-    pub is_fullscreen: bool,
-    pub dpi_factor: Option<f64>,
-}
-
-/// Contains information about states and the window that the callback is going to use.
-#[derive(Clone)]
-pub struct WindowState {
-    /// Cursor to set at the next `WM_SETCURSOR` event received.
-    pub cursor: Cursor,
-    pub cursor_grabbed: bool,
-    pub cursor_hidden: bool,
-    /// Used by `WM_GETMINMAXINFO`.
-    pub max_size: Option<PhysicalSize>,
-    pub min_size: Option<PhysicalSize>,
-    /// Will contain `true` if the mouse is hovering the window.
-    pub mouse_in_window: bool,
-    /// Saved window info for fullscreen restored
-    pub saved_window_info: Option<SavedWindowInfo>,
-    // This is different from the value in `SavedWindowInfo`! That one represents the DPI saved upon entering
-    // fullscreen. This will always be the most recent DPI for the window.
-    pub dpi_factor: f64,
-    pub fullscreen: Option<::MonitorId>,
-    pub window_icon: Option<WinIcon>,
-    pub taskbar_icon: Option<WinIcon>,
-    pub decorations: bool,
-    pub always_on_top: bool,
-    pub maximized: bool,
-    pub resizable: bool,
-}
-
-impl WindowState {
-    pub fn update_min_max(&mut self, old_dpi_factor: f64, new_dpi_factor: f64) {
-        let scale_factor = new_dpi_factor / old_dpi_factor;
-        let dpi_adjuster = |mut physical_size: PhysicalSize| -> PhysicalSize {
-            physical_size.width *= scale_factor;
-            physical_size.height *= scale_factor;
-            physical_size
-        };
-        self.max_size = self.max_size.map(&dpi_adjuster);
-        self.min_size = self.min_size.map(&dpi_adjuster);
-    }
-}
+use platform::platform::window_state::WindowState;
 
 /// Dummy object that allows inserting a window's state.
 // We store a pointer in order to !impl Send and Sync.
@@ -1166,66 +1112,67 @@ unsafe fn callback_inner(
         // Only sent on Windows 8.1 or newer. On Windows 7 and older user has to log out to change
         // DPI, therefore all applications are closed while DPI is changing.
         winuser::WM_DPICHANGED => {
-            use events::WindowEvent::HiDpiFactorChanged;
+            unimplemented!()
+            // use events::WindowEvent::HiDpiFactorChanged;
 
-            // This message actually provides two DPI values - x and y. However MSDN says that
-            // "you only need to use either the X-axis or the Y-axis value when scaling your
-            // application since they are the same".
-            // https://msdn.microsoft.com/en-us/library/windows/desktop/dn312083(v=vs.85).aspx
-            let new_dpi_x = u32::from(LOWORD(wparam as DWORD));
-            let new_dpi_factor = dpi_to_scale_factor(new_dpi_x);
+            // // This message actually provides two DPI values - x and y. However MSDN says that
+            // // "you only need to use either the X-axis or the Y-axis value when scaling your
+            // // application since they are the same".
+            // // https://msdn.microsoft.com/en-us/library/windows/desktop/dn312083(v=vs.85).aspx
+            // let new_dpi_x = u32::from(LOWORD(wparam as DWORD));
+            // let new_dpi_factor = dpi_to_scale_factor(new_dpi_x);
 
-            let suppress_resize = CONTEXT_STASH.with(|context_stash| {
-                context_stash
-                    .borrow()
-                    .as_ref()
-                    .and_then(|cstash| cstash.windows.get(&window))
-                    .map(|window_state_mutex| {
-                        let mut window_state = window_state_mutex.lock().unwrap();
-                        let suppress_resize = window_state.saved_window_info
-                            .as_mut()
-                            .map(|saved_window_info| {
-                                let dpi_changed = if !saved_window_info.is_fullscreen {
-                                    saved_window_info.dpi_factor.take() != Some(new_dpi_factor)
-                                } else {
-                                    false
-                                };
-                                !dpi_changed || saved_window_info.is_fullscreen
-                            })
-                            .unwrap_or(false);
-                        // Now we adjust the min/max dimensions for the new DPI.
-                        if !suppress_resize {
-                            let old_dpi_factor = window_state.dpi_factor;
-                            window_state.update_min_max(old_dpi_factor, new_dpi_factor);
-                        }
-                        window_state.dpi_factor = new_dpi_factor;
-                        suppress_resize
-                    })
-                    .unwrap_or(false)
-            });
+            // let suppress_resize = CONTEXT_STASH.with(|context_stash| {
+            //     context_stash
+            //         .borrow()
+            //         .as_ref()
+            //         .and_then(|cstash| cstash.windows.get(&window))
+            //         .map(|window_state_mutex| {
+            //             let mut window_state = window_state_mutex.lock().unwrap();
+            //             let suppress_resize = window_state.saved_window_info
+            //                 .as_mut()
+            //                 .map(|saved_window_info| {
+            //                     let dpi_changed = if !saved_window_info.is_fullscreen {
+            //                         saved_window_info.dpi_factor.take() != Some(new_dpi_factor)
+            //                     } else {
+            //                         false
+            //                     };
+            //                     !dpi_changed || saved_window_info.is_fullscreen
+            //                 })
+            //                 .unwrap_or(false);
+            //             // Now we adjust the min/max dimensions for the new DPI.
+            //             if !suppress_resize {
+            //                 let old_dpi_factor = window_state.dpi_factor;
+            //                 window_state.update_min_max(old_dpi_factor, new_dpi_factor);
+            //             }
+            //             window_state.dpi_factor = new_dpi_factor;
+            //             suppress_resize
+            //         })
+            //         .unwrap_or(false)
+            // });
 
-            // This prevents us from re-applying DPI adjustment to the restored size after exiting
-            // fullscreen (the restored size is already DPI adjusted).
-            if !suppress_resize {
-                // Resize window to the size suggested by Windows.
-                let rect = &*(lparam as *const RECT);
-                winuser::SetWindowPos(
-                    window,
-                    ptr::null_mut(),
-                    rect.left,
-                    rect.top,
-                    rect.right - rect.left,
-                    rect.bottom - rect.top,
-                    winuser::SWP_NOZORDER | winuser::SWP_NOACTIVATE,
-                );
-            }
+            // // This prevents us from re-applying DPI adjustment to the restored size after exiting
+            // // fullscreen (the restored size is already DPI adjusted).
+            // if !suppress_resize {
+            //     // Resize window to the size suggested by Windows.
+            //     let rect = &*(lparam as *const RECT);
+            //     winuser::SetWindowPos(
+            //         window,
+            //         ptr::null_mut(),
+            //         rect.left,
+            //         rect.top,
+            //         rect.right - rect.left,
+            //         rect.bottom - rect.top,
+            //         winuser::SWP_NOZORDER | winuser::SWP_NOACTIVATE,
+            //     );
+            // }
 
-            send_event(Event::WindowEvent {
-                window_id: SuperWindowId(WindowId(window)),
-                event: HiDpiFactorChanged(new_dpi_factor),
-            });
+            // send_event(Event::WindowEvent {
+            //     window_id: SuperWindowId(WindowId(window)),
+            //     event: HiDpiFactorChanged(new_dpi_factor),
+            // });
 
-            0
+            // 0
         },
 
         _ => {

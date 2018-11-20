@@ -7,6 +7,7 @@ fn main() {
         .with_title("A fantastic window!")
         .build(&events_loop)
         .unwrap();
+    _window.set_resizable(false);
 
     events_loop.run_forever(|event| {
         println!("{:?}", event);

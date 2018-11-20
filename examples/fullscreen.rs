@@ -36,11 +36,10 @@ fn main() {
     let mut decorations = true;
 
     events_loop.run_forever(|event| {
-        println!("{:?}", event);
-
         match event {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => return ControlFlow::Break,
+                WindowEvent::Resized(size) => println!("resized {:?}", size),
                 WindowEvent::KeyboardInput {
                     input:
                         winit::KeyboardInput {
@@ -55,17 +54,22 @@ fn main() {
                         is_fullscreen = !is_fullscreen;
                         if !is_fullscreen {
                             window.set_fullscreen(None);
+                            println!("UNSET     fullscreen");
                         } else {
                             window.set_fullscreen(Some(window.get_current_monitor()));
+                            println!("SET       fullscreen");
                         }
-                    }
-                    (winit::VirtualKeyCode::M, winit::ElementState::Pressed) => {
-                        is_maximized = !is_maximized;
-                        window.set_maximized(is_maximized);
                     }
                     (winit::VirtualKeyCode::D, winit::ElementState::Pressed) => {
                         decorations = !decorations;
                         window.set_decorations(decorations);
+                        match decorations {
+                            true =>  println!("SET   decorations"),
+                            false => println!("UNSET decorations")
+                        }
+                    }
+                    (winit::VirtualKeyCode::R, winit::ElementState::Pressed) => {
+                        window.set_inner_size(winit::dpi::LogicalSize::new(64.0, 64.0));
                     }
                     _ => (),
                 },
