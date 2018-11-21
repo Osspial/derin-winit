@@ -34,12 +34,16 @@ fn main() {
     let mut is_fullscreen = true;
     let mut is_maximized = false;
     let mut decorations = true;
+    let mut resizable = true;
+
+    let monitor_2 = events_loop.get_available_monitors().nth(2).unwrap();
 
     events_loop.run_forever(|event| {
+        // println!("{:?}", event);
         match event {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => return ControlFlow::Break,
-                WindowEvent::Resized(size) => println!("resized {:?}", size),
+                WindowEvent::Resized(size) => println!("resized {:?}", size.to_physical(window.get_hidpi_factor())),
                 WindowEvent::KeyboardInput {
                     input:
                         winit::KeyboardInput {
@@ -52,24 +56,21 @@ fn main() {
                     (winit::VirtualKeyCode::Escape, _) => return ControlFlow::Break,
                     (winit::VirtualKeyCode::F, winit::ElementState::Pressed) => {
                         is_fullscreen = !is_fullscreen;
+                        println!("\nset fullscreen");
                         if !is_fullscreen {
                             window.set_fullscreen(None);
-                            println!("UNSET     fullscreen");
                         } else {
-                            window.set_fullscreen(Some(window.get_current_monitor()));
-                            println!("SET       fullscreen");
+                            window.set_fullscreen(Some(monitor_2.clone()));
                         }
                     }
                     (winit::VirtualKeyCode::D, winit::ElementState::Pressed) => {
                         decorations = !decorations;
+                        println!("\nset decorations");
                         window.set_decorations(decorations);
-                        match decorations {
-                            true =>  println!("SET   decorations"),
-                            false => println!("UNSET decorations")
-                        }
                     }
                     (winit::VirtualKeyCode::R, winit::ElementState::Pressed) => {
-                        window.set_inner_size(winit::dpi::LogicalSize::new(64.0, 64.0));
+                        resizable = !resizable;
+                        window.set_resizable(resizable);
                     }
                     _ => (),
                 },

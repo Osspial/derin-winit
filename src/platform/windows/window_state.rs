@@ -1,10 +1,10 @@
 use {MouseCursor, WindowAttributes};
-use std::io;
+use std::{io, ptr};
 use dpi::LogicalSize;
-use platform::platform::icon::WinIcon;
 use platform::platform::{util, Cursor};
+use platform::platform::icon::WinIcon;
 use winapi::shared::windef::{RECT, HWND};
-use winapi::shared::minwindef::DWORD;
+use winapi::shared::minwindef::{DWORD, WPARAM, LPARAM};
 use winapi::um::winnt::LONG;
 use winapi::um::winuser;
 
@@ -23,7 +23,7 @@ pub struct WindowState {
     pub saved_window: Option<SavedWindow>,
     pub dpi_factor: f64,
 
-    fullscreen: Option<::MonitorId>,
+    pub fullscreen: Option<::MonitorId>,
     window_flags: WindowFlags,
 }
 
@@ -66,6 +66,7 @@ bitflags! {
             WindowFlags::RESIZABLE.bits |
             WindowFlags::MAXIMIZED.bits
         );
+        const NO_DECORATIONS_AND_MASK = !WindowFlags::RESIZABLE.bits;
         const INVISIBLE_AND_MASK = !WindowFlags::MAXIMIZED.bits;
     }
 }
@@ -101,25 +102,18 @@ impl WindowState {
         self.window_flags
     }
 
-    pub fn fullscreen(&self) -> &Option<::MonitorId> {
-        &self.fullscreen
-    }
-
-    pub fn set_fullscreen(&mut self, window: HWND, fullscreen: Option<::MonitorId>) {
-        self.fullscreen = fullscreen;
-
-        // Update the FULLSCREEN flag
-        self.set_window_flags(window, |_| ());
-    }
-
-    pub fn set_window_flags<F>(&mut self, window: HWND, f: F)
+    pub fn set_window_flags<F>(&mut self, window: HWND, refresh_frame: bool, f: F)
         where F: FnOnce(&mut WindowFlags)
     {
         let old_flags = self.window_flags;
         f(&mut self.window_flags);
         self.window_flags.set(WindowFlags::FULLSCREEN, self.fullscreen.is_some());
 
-        old_flags.apply_diff(self.window_flags, window);
+        old_flags.apply_diff(self.window_flags, refresh_frame, window);
+    }
+
+    pub fn refresh_window_flags(&mut self, refresh_frame: bool, window: HWND) {
+        self.set_window_flags(window, refresh_frame, |_| ());
     }
 }
 
@@ -157,6 +151,9 @@ impl WindowFlags {
         }
         if !self.contains(WindowFlags::VISIBLE) {
             self &= WindowFlags::INVISIBLE_AND_MASK;
+        }
+        if !self.contains(WindowFlags::DECORATIONS) {
+            self &= WindowFlags::NO_DECORATIONS_AND_MASK;
         }
         self
     }
@@ -205,7 +202,8 @@ impl WindowFlags {
         (style, style_ex)
     }
 
-    fn apply_diff(mut self, mut new: WindowFlags, window: HWND) {
+    /// Adjust the window client rectangle to the return value, if present.
+    fn apply_diff(mut self, mut new: WindowFlags, refresh_frame: bool, window: HWND) {
         self = self.mask();
         new = new.mask();
 
@@ -244,28 +242,34 @@ impl WindowFlags {
                         true  => winuser::HWND_TOPMOST,
                         false => winuser::HWND_NOTOPMOST,
                     },
-                    0,
-                    0,
-                    0,
-                    0,
+                    0, 0, 0, 0,
                     winuser::SWP_ASYNCWINDOWPOS | winuser::SWP_NOMOVE | winuser::SWP_NOSIZE,
                 );
                 winuser::UpdateWindow(window);
             }
         }
 
-        let (style, style_ex) = new.to_window_styles();
-        unsafe{
-            winuser::SetWindowLongW(window, winuser::GWL_STYLE, style as _);
-            winuser::SetWindowLongW(window, winuser::GWL_EXSTYLE, style_ex as _);
-        }
-        unsafe {
-            winuser::SetWindowPos(
-                window,
-                ::std::ptr::null_mut(),
-                0, 0, 0, 0,
-                winuser::SWP_NOMOVE | winuser::SWP_NOSIZE | winuser::SWP_NOZORDER | winuser::SWP_NOREDRAW | winuser::SWP_FRAMECHANGED
-            );
+        if diff != WindowFlags::empty() {
+            let (style, style_ex) = new.to_window_styles();
+
+            unsafe {
+                winuser::SetWindowLongW(window, winuser::GWL_STYLE, style as _);
+                winuser::SetWindowLongW(window, winuser::GWL_EXSTYLE, style_ex as _);
+
+                if refresh_frame {
+                    // Refresh the window frame.
+                    winuser::SetWindowPos(
+                        window,
+                        ptr::null_mut(),
+                        0, 0, 0, 0,
+                        winuser::SWP_ASYNCWINDOWPOS
+                        | winuser::SWP_NOMOVE
+                        | winuser::SWP_NOSIZE
+                        | winuser::SWP_NOZORDER
+                        | winuser::SWP_FRAMECHANGED,
+                    );
+                }
+            }
         }
     }
 }

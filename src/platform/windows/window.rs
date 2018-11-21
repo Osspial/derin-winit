@@ -255,7 +255,7 @@ impl Window {
         let window_state = Arc::clone(&self.window_state);
 
         self.events_loop_proxy.execute_in_thread(move |_| {
-            window_state.lock().unwrap().set_window_flags(window.0, |f| f.set(WindowFlags::RESIZABLE, resizable));
+            window_state.lock().unwrap().set_window_flags(window.0, true, |f| f.set(WindowFlags::RESIZABLE, resizable));
         });
     }
 
@@ -346,7 +346,7 @@ impl Window {
 
         self.events_loop_proxy.execute_in_thread(move |_| {
             let result = window_state.lock().unwrap()
-                .set_window_flags(window.0, |f| f.set(WindowFlags::MAXIMIZED, maximized));
+                .set_window_flags(window.0, true, |f| f.set(WindowFlags::MAXIMIZED, maximized));
         });
     }
 
@@ -363,16 +363,17 @@ impl Window {
 
                     let mut monitor = monitor.clone();
                     self.events_loop_proxy.execute_in_thread(move |_| {
-                        let mut window_state = window_state.lock().unwrap();
+                        let mut window_state_lock = window_state.lock().unwrap();
 
-                        window_state.saved_window = Some(SavedWindow {
+                        window_state_lock.saved_window = Some(SavedWindow {
                             client_rect: util::get_client_rect(window.0).expect("get client rect failed!"),
-                            dpi_factor: window_state.dpi_factor
+                            dpi_factor: window_state_lock.dpi_factor
                         });
 
-                        window_state.set_fullscreen(window.0, monitor.take());
+                        window_state_lock.fullscreen = monitor.take();
+                        window_state_lock.refresh_window_flags(false, window.0);
 
-                        drop(window_state);
+                        drop(window_state_lock);
                         winuser::SetWindowPos(
                             window.0,
                             ptr::null_mut(),
@@ -390,12 +391,16 @@ impl Window {
                 }
                 &None => {
                     self.events_loop_proxy.execute_in_thread(move |_| {
-                        let mut window_state = window_state.lock().unwrap();
-                        window_state.set_fullscreen(window.0, None);
-                        if let Some(SavedWindow{client_rect, ..}) = window_state.saved_window {
-                            let rect = util::adjust_window_rect(window.0, client_rect).expect("adjust client rect failed!");
+                        let mut window_state_lock = window_state.lock().unwrap();
+                        window_state_lock.fullscreen = None;
+                        window_state_lock.refresh_window_flags(false, window.0);
 
-                            drop(window_state);
+                        if let Some(SavedWindow{client_rect, dpi_factor}) = window_state_lock.saved_window {
+                            let rect = util::adjust_window_rect(window.0, client_rect).expect("adjust client rect failed!");
+                            window_state_lock.dpi_factor = dpi_factor;
+                            window_state_lock.saved_window = None;
+
+                            drop(window_state_lock);
                             winuser::SetWindowPos(
                                 window.0,
                                 ptr::null_mut(),
@@ -403,11 +408,12 @@ impl Window {
                                 rect.top,
                                 rect.right - rect.left,
                                 rect.bottom - rect.top,
-                                winuser::SWP_NOZORDER
-                                    | winuser::SWP_NOACTIVATE
-                                    | winuser::SWP_FRAMECHANGED,
+                                  winuser::SWP_NOZORDER
+                                | winuser::SWP_NOACTIVATE
+                                | winuser::SWP_FRAMECHANGED,
                             );
                         }
+
                         mark_fullscreen(window.0, false);
                     });
                 }
@@ -421,71 +427,9 @@ impl Window {
         let window_state = Arc::clone(&self.window_state);
 
         self.events_loop_proxy.execute_in_thread(move |_| {
-            let result = window_state.lock().unwrap()
-                .set_window_flags(window.0, |f| f.set(WindowFlags::DECORATIONS, decorations));
+            window_state.lock().unwrap()
+                .set_window_flags(window.0, true, |f| f.set(WindowFlags::DECORATIONS, decorations));
         });
-        // let mut window_state = self.window_state.lock().unwrap();
-        // if window_state.decorations != decorations {
-        //     window_state.decorations = decorations;
-
-        //     let style_flags = (winuser::WS_CAPTION | winuser::WS_THICKFRAME) as LONG;
-        //     let ex_style_flags = (winuser::WS_EX_WINDOWEDGE) as LONG;
-
-        //     // if we are in fullscreen mode, we only change the saved window info
-        //     if window_state.fullscreen.is_some() {
-        //         let resizable = window_state.resizable;
-        //         let saved = window_state.saved_window_info.as_mut().unwrap();
-
-        //         if decorations {
-        //             saved.style = saved.style | style_flags;
-        //             saved.ex_style = saved.ex_style | ex_style_flags;
-        //         } else {
-        //             saved.style = saved.style & !style_flags;
-        //             saved.ex_style = saved.ex_style & !ex_style_flags;
-        //         }
-        //         if resizable {
-        //             saved.style |= WS_RESIZABLE as LONG;
-        //         } else {
-        //             saved.style &= !WS_RESIZABLE as LONG;
-        //         }
-        //     } else {
-        //         unsafe {
-        //             let mut rect = util::get_client_rect(self.window.0).expect("Get client rect failed!");
-
-        //             let mut style = winuser::GetWindowLongW(self.window.0, winuser::GWL_STYLE);
-        //             let mut ex_style = winuser::GetWindowLongW(self.window.0, winuser::GWL_EXSTYLE);
-
-        //             if decorations {
-        //                 style = style | style_flags;
-        //                 ex_style = ex_style | ex_style_flags;
-        //             } else {
-        //                 style = style & !style_flags;
-        //                 ex_style = ex_style & !ex_style_flags;
-        //             }
-
-        //             let window = self.window.clone();
-
-        //             self.events_loop_proxy.execute_in_thread(move |_| {
-        //                 winuser::SetWindowLongW(window.0, winuser::GWL_STYLE, style);
-        //                 winuser::SetWindowLongW(window.0, winuser::GWL_EXSTYLE, ex_style);
-        //                 winuser::AdjustWindowRectEx(&mut rect, style as _, 0, ex_style as _);
-
-        //                 winuser::SetWindowPos(
-        //                     window.0,
-        //                     ptr::null_mut(),
-        //                     rect.left,
-        //                     rect.top,
-        //                     rect.right - rect.left,
-        //                     rect.bottom - rect.top,
-        //                     winuser::SWP_ASYNCWINDOWPOS
-        //                     | winuser::SWP_NOZORDER
-        //                     | winuser::SWP_NOACTIVATE
-        //                     | winuser::SWP_FRAMECHANGED,
-        //                 );
-        //             });
-        //         }
-        //     }
-        // }
     }
 
     #[inline]
@@ -495,7 +439,7 @@ impl Window {
 
         self.events_loop_proxy.execute_in_thread(move |_| {
             let result = window_state.lock().unwrap()
-                .set_window_flags(window.0, |f| f.set(WindowFlags::ALWAYS_ON_TOP, always_on_top));
+                .set_window_flags(window.0, true, |f| f.set(WindowFlags::ALWAYS_ON_TOP, always_on_top));
         });
     }
 
@@ -722,7 +666,7 @@ unsafe fn init(
             taskbar_icon,
             dpi_factor,
         );
-        window_state.set_window_flags(real_window.0, |f| *f = window_flags);
+        window_state.set_window_flags(real_window.0, true, |f| *f = window_flags);
         // Creating a mutex to track the current window state
         Arc::new(Mutex::new(window_state))
     };

@@ -81,13 +81,19 @@ pub fn get_client_rect(hwnd: HWND) -> Result<RECT, io::Error> {
     }
 }
 
-pub fn adjust_window_rect(hwnd: HWND, mut rect: RECT) -> Option<RECT> {
-    unsafe { status_map(|r| {
-        *r = rect;
+pub fn adjust_window_rect(hwnd: HWND, rect: RECT) -> Option<RECT> {
+    unsafe {
         let style = winuser::GetWindowLongW(hwnd, winuser::GWL_STYLE);
         let style_ex = winuser::GetWindowLongW(hwnd, winuser::GWL_EXSTYLE);
-        let b_menu = !winuser::GetMenu(hwnd).is_null() as BOOL;
+        adjust_window_rect_with_styles(hwnd, style as _, style_ex as _, rect)
+    }
+}
 
+pub fn adjust_window_rect_with_styles(hwnd: HWND, style: DWORD, style_ex: DWORD, rect: RECT) -> Option<RECT> {
+    unsafe { status_map(|r| {
+        *r = rect;
+
+        let b_menu = !winuser::GetMenu(hwnd).is_null() as BOOL;
         winuser::AdjustWindowRectEx(r, style as _ , b_menu, style_ex as _)
     }) }
 }

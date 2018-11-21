@@ -293,7 +293,6 @@ impl EventsLoopProxy {
             let raw = Box::into_raw(double_box);
 
             let res = unsafe {
-                println!("send exec in thread");
                 winuser::PostMessageW(
                     self.thread_msg_target,
                     *EXEC_MSG_ID,
@@ -573,6 +572,7 @@ unsafe fn callback_inner(
         },
 
         winuser::WM_SIZE => {
+            ::std::thread::sleep_ms(500);
             use events::WindowEvent::Resized;
             let w = LOWORD(lparam as DWORD) as u32;
             let h = HIWORD(lparam as DWORD) as u32;
@@ -1120,67 +1120,79 @@ unsafe fn callback_inner(
         // Only sent on Windows 8.1 or newer. On Windows 7 and older user has to log out to change
         // DPI, therefore all applications are closed while DPI is changing.
         winuser::WM_DPICHANGED => {
-            unimplemented!()
-            // use events::WindowEvent::HiDpiFactorChanged;
+            use events::WindowEvent::HiDpiFactorChanged;
 
-            // // This message actually provides two DPI values - x and y. However MSDN says that
-            // // "you only need to use either the X-axis or the Y-axis value when scaling your
-            // // application since they are the same".
-            // // https://msdn.microsoft.com/en-us/library/windows/desktop/dn312083(v=vs.85).aspx
-            // let new_dpi_x = u32::from(LOWORD(wparam as DWORD));
-            // let new_dpi_factor = dpi_to_scale_factor(new_dpi_x);
+            // This message actually provides two DPI values - x and y. However MSDN says that
+            // "you only need to use either the X-axis or the Y-axis value when scaling your
+            // application since they are the same".
+            // https://msdn.microsoft.com/en-us/library/windows/desktop/dn312083(v=vs.85).aspx
+            let new_dpi_x = u32::from(LOWORD(wparam as DWORD));
+            let new_dpi_factor = dpi_to_scale_factor(new_dpi_x);
 
-            // let suppress_resize = CONTEXT_STASH.with(|context_stash| {
-            //     context_stash
-            //         .borrow()
-            //         .as_ref()
-            //         .and_then(|cstash| cstash.windows.get(&window))
-            //         .map(|window_state_mutex| {
-            //             let mut window_state = window_state_mutex.lock().unwrap();
-            //             let suppress_resize = window_state.saved_window_info
-            //                 .as_mut()
-            //                 .map(|saved_window_info| {
-            //                     let dpi_changed = if !saved_window_info.is_fullscreen {
-            //                         saved_window_info.dpi_factor.take() != Some(new_dpi_factor)
-            //                     } else {
-            //                         false
-            //                     };
-            //                     !dpi_changed || saved_window_info.is_fullscreen
-            //                 })
-            //                 .unwrap_or(false);
-            //             // Now we adjust the min/max dimensions for the new DPI.
-            //             if !suppress_resize {
-            //                 let old_dpi_factor = window_state.dpi_factor;
-            //                 window_state.update_min_max(old_dpi_factor, new_dpi_factor);
-            //             }
-            //             window_state.dpi_factor = new_dpi_factor;
-            //             suppress_resize
-            //         })
-            //         .unwrap_or(false)
-            // });
+            let allow_resize = CONTEXT_STASH.with(|context_stash| {
+                if let Some(wstash) = context_stash.borrow().as_ref().and_then(|cstash| cstash.windows.get(&window)) {
+                    let mut window_state = wstash.lock().unwrap();
+                    let old_dpi_factor = window_state.dpi_factor;
+                    window_state.dpi_factor = new_dpi_factor;
 
-            // // This prevents us from re-applying DPI adjustment to the restored size after exiting
-            // // fullscreen (the restored size is already DPI adjusted).
-            // if !suppress_resize {
-            //     // Resize window to the size suggested by Windows.
-            //     let rect = &*(lparam as *const RECT);
-            //     winuser::SetWindowPos(
-            //         window,
-            //         ptr::null_mut(),
-            //         rect.left,
-            //         rect.top,
-            //         rect.right - rect.left,
-            //         rect.bottom - rect.top,
-            //         winuser::SWP_NOZORDER | winuser::SWP_NOACTIVATE,
-            //     );
-            // }
+                    new_dpi_factor != old_dpi_factor && window_state.fullscreen.is_none()
+                } else {
+                    true
+                }
+            });
 
-            // send_event(Event::WindowEvent {
-            //     window_id: SuperWindowId(WindowId(window)),
-            //     event: HiDpiFactorChanged(new_dpi_factor),
-            // });
+            // This prevents us from re-applying DPI adjustment to the restored size after exiting
+            // fullscreen (the restored size is already DPI adjusted).
+            if allow_resize {
+                println!("allow resize");
+                // Resize window to the size suggested by Windows.
+                let rect = &*(lparam as *const RECT);
+                winuser::SetWindowPos(
+                    window,
+                    ptr::null_mut(),
+                    rect.left,
+                    rect.top,
+                    rect.right - rect.left,
+                    rect.bottom - rect.top,
+                    winuser::SWP_NOZORDER | winuser::SWP_NOACTIVATE,
+                );
+            }
 
-            // 0
+            send_event(Event::WindowEvent {
+                window_id: SuperWindowId(WindowId(window)),
+                event: HiDpiFactorChanged(new_dpi_factor),
+            });
+
+            0
+        },
+
+        winuser::WM_NCCALCSIZE => {
+            if wparam == 1 {
+                let size_params = *(lparam as *mut winuser::NCCALCSIZE_PARAMS);
+                let new_window_rect_proposed = size_params.rgrc[0];
+                let old_window_rect = size_params.rgrc[1];
+                let old_client_rect = size_params.rgrc[2];
+
+                // If the window resize operation only effects the client rectangle (i.e. the outer
+                // window rect is the same, but is different from the old client rectangle),
+                // preserve the old client rect.
+                let preserve_client_rect =
+                     util::rect_eq(&new_window_rect_proposed, &old_window_rect) &&
+                    !util::rect_eq(&old_window_rect, &old_client_rect);
+
+                if preserve_client_rect {
+                    let size_params = &mut *(lparam as *mut winuser::NCCALCSIZE_PARAMS);
+                    // Make sure the new client rect is the same as the old client rect.
+                    size_params.rgrc[0] = old_client_rect;
+                    size_params.rgrc[1] = old_client_rect;
+                    size_params.rgrc[2] = old_client_rect;
+                    0
+                } else {
+                    winuser::DefWindowProcW(window, msg, wparam, lparam)
+                }
+            } else {
+                winuser::DefWindowProcW(window, msg, wparam, lparam)
+            }
         },
 
         _ => {
