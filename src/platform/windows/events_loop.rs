@@ -224,6 +224,7 @@ impl EventsLoop {
 
     pub fn create_proxy(&self) -> EventsLoopProxy {
         EventsLoopProxy {
+            thread_id: self.thread_id,
             thread_msg_target: self.thread_msg_target,
             sender: self.sender.clone(),
         }
@@ -254,6 +255,7 @@ impl Drop for EventsLoop {
 
 #[derive(Clone)]
 pub struct EventsLoopProxy {
+    thread_id: DWORD,
     thread_msg_target: HWND,
     sender: mpsc::Sender<EventsLoopEvent>,
 }
@@ -279,25 +281,32 @@ impl EventsLoopProxy {
     /// `WindowState` then you should call this within the lock of `WindowState`. Otherwise the
     /// events may be sent to the other thread in different order to the one in which you set
     /// `WindowState`, leaving them out of sync.
-    pub fn execute_in_thread<F>(&self, function: F)
+    pub fn execute_in_thread<F>(&self, mut function: F)
     where
         F: FnMut(Inserter) + Send + 'static,
     {
-        // We are using double-boxing here because it make casting back much easier
-        let double_box = Box::new(Box::new(function) as Box<FnMut(_)>);
-        let raw = Box::into_raw(double_box);
+        if unsafe{ processthreadsapi::GetCurrentThreadId() } == self.thread_id {
+            function(Inserter(ptr::null_mut()));
+        } else {
+            // We are using double-boxing here because it make casting back much easier
+            let double_box: ThreadExecFn = Box::new(Box::new(function) as Box<FnMut(_)>);
+            let raw = Box::into_raw(double_box);
 
-        let res = unsafe {
-            winuser::PostMessageW(
-                self.thread_msg_target,
-                *EXEC_MSG_ID,
-                raw as *mut () as usize as WPARAM,
-                0,
-            )
-        };
-        assert!(res != 0, "PostMessage failed; is the messages queue full?");
+            let res = unsafe {
+                println!("send exec in thread");
+                winuser::PostMessageW(
+                    self.thread_msg_target,
+                    *EXEC_MSG_ID,
+                    raw as *mut () as usize as WPARAM,
+                    0,
+                )
+            };
+            assert!(res != 0, "PostMessage failed; is the messages queue full?");
+        }
     }
 }
+
+type ThreadExecFn = Box<Box<FnMut(Inserter)>>;
 
 lazy_static! {
     // Message sent when we want to execute a closure in the thread.
@@ -607,22 +616,27 @@ unsafe fn callback_inner(
 
         winuser::WM_MOUSEMOVE => {
             use events::WindowEvent::{CursorEntered, CursorMoved};
-            let mouse_outside_window = CONTEXT_STASH.with(|context_stash| {
+            let x = windowsx::GET_X_LPARAM(lparam);
+            let y = windowsx::GET_Y_LPARAM(lparam);
+            let cursor_pos = POINT { x, y };
+
+            let mouse_was_outside_window = CONTEXT_STASH.with(|context_stash| {
                 let mut context_stash = context_stash.borrow_mut();
                 if let Some(context_stash) = context_stash.as_mut() {
                     if let Some(w) = context_stash.windows.get_mut(&window) {
                         let mut w = w.lock().unwrap();
-                        if !w.mouse.cursor_flags().contains(CursorFlags::IN_WINDOW) {
-                            w.mouse.set_cursor_flags(window, |f| *f |= CursorFlags::IN_WINDOW);
-                            return true;
-                        }
+
+                        let was_outside_window = !w.mouse.cursor_flags().contains(CursorFlags::IN_WINDOW);
+                        w.mouse.set_cursor_flags(window, |f| f.set(CursorFlags::IN_WINDOW, true));
+                        return was_outside_window;
                     }
                 }
 
                 false
             });
 
-            if mouse_outside_window {
+
+            if mouse_was_outside_window {
                 send_event(Event::WindowEvent {
                     window_id: SuperWindowId(WindowId(window)),
                     event: CursorEntered { device_id: DEVICE_ID },
@@ -637,10 +651,8 @@ unsafe fn callback_inner(
                 });
             }
 
-            let x = windowsx::GET_X_LPARAM(lparam) as f64;
-            let y = windowsx::GET_Y_LPARAM(lparam) as f64;
             let dpi_factor = get_hwnd_scale_factor(window);
-            let position = LogicalPosition::from_physical((x, y), dpi_factor);
+            let position = LogicalPosition::from_physical((x as f64, y as f64), dpi_factor);
 
             send_event(Event::WindowEvent {
                 window_id: SuperWindowId(WindowId(window)),
@@ -652,27 +664,21 @@ unsafe fn callback_inner(
 
         winuser::WM_MOUSELEAVE => {
             use events::WindowEvent::CursorLeft;
-            let mouse_in_window = CONTEXT_STASH.with(|context_stash| {
+
+            CONTEXT_STASH.with(|context_stash| {
                 let mut context_stash = context_stash.borrow_mut();
                 if let Some(context_stash) = context_stash.as_mut() {
                     if let Some(w) = context_stash.windows.get_mut(&window) {
                         let mut w = w.lock().unwrap();
-                        if !w.mouse.cursor_flags().contains(CursorFlags::IN_WINDOW) {
-                            w.mouse.set_cursor_flags(window, |f| f.set(CursorFlags::IN_WINDOW, false));
-                            return true;
-                        }
+                        w.mouse.set_cursor_flags(window, |f| f.set(CursorFlags::IN_WINDOW, false));
                     }
                 }
-
-                false
             });
 
-            if mouse_in_window {
-                send_event(Event::WindowEvent {
-                    window_id: SuperWindowId(WindowId(window)),
-                    event: CursorLeft { device_id: DEVICE_ID }
-                });
-            }
+            send_event(Event::WindowEvent {
+                window_id: SuperWindowId(WindowId(window)),
+                event: CursorLeft { device_id: DEVICE_ID }
+            });
 
             0
         },
@@ -1047,31 +1053,31 @@ unsafe fn callback_inner(
         },
 
         winuser::WM_SETCURSOR => {
-            let call_def_window_proc = CONTEXT_STASH.with(|context_stash| {
+            let set_cursor_to = CONTEXT_STASH.with(|context_stash| {
                 context_stash
                     .borrow()
                     .as_ref()
                     .and_then(|cstash| cstash.windows.get(&window))
-                    .map(|window_state_mutex| {
+                    .and_then(|window_state_mutex| {
                         let window_state = window_state_mutex.lock().unwrap();
                         if window_state.mouse.cursor_flags().contains(CursorFlags::IN_WINDOW) {
-                            let cursor = winuser::LoadCursorW(
-                                ptr::null_mut(),
-                                window_state.mouse.cursor.to_windows_cursor(),
-                            );
-                            winuser::SetCursor(cursor);
-                            false
+                            Some(window_state.mouse.cursor)
                         } else {
-                            true
+                            None
                         }
                     })
-                    .unwrap_or(true)
             });
 
-            if call_def_window_proc {
-                winuser::DefWindowProcW(window, msg, wparam, lparam)
-            } else {
-                0
+            match set_cursor_to {
+                Some(cursor) => {
+                    let cursor = winuser::LoadCursorW(
+                        ptr::null_mut(),
+                        cursor.to_windows_cursor(),
+                    );
+                    winuser::SetCursor(cursor);
+                    0
+                },
+                None => winuser::DefWindowProcW(window, msg, wparam, lparam)
             }
         },
 
@@ -1238,8 +1244,8 @@ pub unsafe extern "system" fn thread_event_target_callback(
     run_catch_panic(-1, || {
         match msg {
             _ if msg == *EXEC_MSG_ID => {
-                let mut function: Box<Box<FnMut()>> = Box::from_raw(wparam as usize as *mut _);
-                function();
+                let mut function: ThreadExecFn = Box::from_raw(wparam as usize as *mut _);
+                function(Inserter(ptr::null_mut()));
                 0
             },
             _ => winuser::DefWindowProcW(window, msg, wparam, lparam)

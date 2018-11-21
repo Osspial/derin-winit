@@ -170,7 +170,7 @@ impl WindowFlags {
             style |= winuser::WS_SIZEBOX | winuser::WS_MAXIMIZEBOX;
         }
         if self.contains(WindowFlags::DECORATIONS) {
-            style |= WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_BORDER;
+            style |= WS_CAPTION | WS_MINIMIZEBOX | WS_BORDER;
             style_ex = WS_EX_WINDOWEDGE;
         }
         if self.contains(WindowFlags::VISIBLE) {
@@ -199,7 +199,7 @@ impl WindowFlags {
             style |= WS_MAXIMIZE;
         }
 
-        style |= WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
+        style |= WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU;
         style_ex |= WS_EX_ACCEPTFILES;
 
         (style, style_ex)

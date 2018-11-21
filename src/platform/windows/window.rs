@@ -364,13 +364,15 @@ impl Window {
                     let mut monitor = monitor.clone();
                     self.events_loop_proxy.execute_in_thread(move |_| {
                         let mut window_state = window_state.lock().unwrap();
-                        window_state.set_fullscreen(window.0, monitor.take());
 
                         window_state.saved_window = Some(SavedWindow {
                             client_rect: util::get_client_rect(window.0).expect("get client rect failed!"),
                             dpi_factor: window_state.dpi_factor
                         });
 
+                        window_state.set_fullscreen(window.0, monitor.take());
+
+                        drop(window_state);
                         winuser::SetWindowPos(
                             window.0,
                             ptr::null_mut(),
@@ -378,9 +380,9 @@ impl Window {
                             y as c_int,
                             width as c_int,
                             height as c_int,
-                            winuser::SWP_ASYNCWINDOWPOS | winuser::SWP_NOZORDER
-                                | winuser::SWP_NOACTIVATE
-                                | winuser::SWP_FRAMECHANGED,
+                            winuser::SWP_NOZORDER |
+                            winuser::SWP_NOACTIVATE |
+                            winuser::SWP_FRAMECHANGED,
                         );
 
                         mark_fullscreen(window.0, true);
@@ -392,6 +394,8 @@ impl Window {
                         window_state.set_fullscreen(window.0, None);
                         if let Some(SavedWindow{client_rect, ..}) = window_state.saved_window {
                             let rect = util::adjust_window_rect(window.0, client_rect).expect("adjust client rect failed!");
+
+                            drop(window_state);
                             winuser::SetWindowPos(
                                 window.0,
                                 ptr::null_mut(),
@@ -399,11 +403,12 @@ impl Window {
                                 rect.top,
                                 rect.right - rect.left,
                                 rect.bottom - rect.top,
-                                winuser::SWP_ASYNCWINDOWPOS | winuser::SWP_NOZORDER
+                                winuser::SWP_NOZORDER
                                     | winuser::SWP_NOACTIVATE
                                     | winuser::SWP_FRAMECHANGED,
                             );
                         }
+                        mark_fullscreen(window.0, false);
                     });
                 }
             }
@@ -657,11 +662,12 @@ unsafe fn init(
 
     // creating the real window this time, by using the functions in `extra_functions`
     let real_window = {
+        let (style, ex_style) = window_flags.to_window_styles();
         let handle = winuser::CreateWindowExW(
-            0,
+            ex_style,
             class_name.as_ptr(),
             title.as_ptr() as LPCWSTR,
-            winuser::WS_SYSMENU,
+            style,
             winuser::CW_USEDEFAULT, winuser::CW_USEDEFAULT,
             winuser::CW_USEDEFAULT, winuser::CW_USEDEFAULT,
             pl_attribs.parent.unwrap_or(ptr::null_mut()),
