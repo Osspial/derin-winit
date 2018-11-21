@@ -480,12 +480,18 @@ pub unsafe extern "system" fn callback(
     run_catch_panic(-1, || callback_inner(window, msg, wparam, lparam))
 }
 
+pub static mut PRINT_MSG: bool = false;
+
 unsafe fn callback_inner(
     window: HWND,
     msg: UINT,
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
+    if PRINT_MSG {
+        println!("msg {:x} {:x} {:x}", msg, wparam, lparam);
+    }
+
     match msg {
         winuser::WM_CREATE => {
             use winapi::shared::winerror::{OLE_E_WRONGCOMPOBJ, RPC_E_CHANGED_MODE};
@@ -572,7 +578,6 @@ unsafe fn callback_inner(
         },
 
         winuser::WM_SIZE => {
-            ::std::thread::sleep_ms(500);
             use events::WindowEvent::Resized;
             let w = LOWORD(lparam as DWORD) as u32;
             let h = HIWORD(lparam as DWORD) as u32;
