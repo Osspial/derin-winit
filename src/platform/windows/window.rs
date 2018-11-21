@@ -652,6 +652,8 @@ unsafe fn init(
     window_flags.set(WindowFlags::VISIBLE, attributes.visible);
     window_flags.set(WindowFlags::RESIZABLE, attributes.resizable);
     window_flags.set(WindowFlags::CHILD, pl_attribs.parent.is_some());
+    window_flags.set(WindowFlags::MAXIMIZED, attributes.maximized);
+    window_flags.set(WindowFlags::ON_TASKBAR, true);
 
     // creating the real window this time, by using the functions in `extra_functions`
     let real_window = {
@@ -659,7 +661,7 @@ unsafe fn init(
             0,
             class_name.as_ptr(),
             title.as_ptr() as LPCWSTR,
-            0,
+            winuser::WS_SYSMENU,
             winuser::CW_USEDEFAULT, winuser::CW_USEDEFAULT,
             winuser::CW_USEDEFAULT, winuser::CW_USEDEFAULT,
             pl_attribs.parent.unwrap_or(ptr::null_mut()),
@@ -672,6 +674,9 @@ unsafe fn init(
             return Err(CreationError::OsError(format!("CreateWindowEx function failed: {}",
                                               format!("{}", io::Error::last_os_error()))));
         }
+
+        winuser::SetWindowLongW(handle, winuser::GWL_STYLE, 0);
+        winuser::SetWindowLongW(handle, winuser::GWL_EXSTYLE, 0);
 
         WindowWrapper(handle)
     };
@@ -749,7 +754,6 @@ unsafe fn init(
         events_loop_proxy,
     };
 
-    win.set_maximized(attributes.maximized);
     if let Some(_) = attributes.fullscreen {
         win.set_fullscreen(attributes.fullscreen);
         force_window_active(win.window.0);

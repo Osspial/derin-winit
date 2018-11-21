@@ -161,7 +161,7 @@ impl WindowFlags {
         self
     }
 
-    fn to_window_styles(self) -> (DWORD, DWORD) {
+    pub fn to_window_styles(self) -> (DWORD, DWORD) {
         use winapi::um::winuser::*;
 
         let (mut style, mut style_ex) = (0, 0);
@@ -170,18 +170,20 @@ impl WindowFlags {
             style |= winuser::WS_SIZEBOX | winuser::WS_MAXIMIZEBOX;
         }
         if self.contains(WindowFlags::DECORATIONS) {
-            style |= WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+            style |= WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_BORDER;
             style_ex = WS_EX_WINDOWEDGE;
         }
-        // if self.contains(WindowFlags::VISIBLE) {
-        //     // Handled with ShowWindow call in apply_diff
-        // }
+        if self.contains(WindowFlags::VISIBLE) {
+            style |= WS_VISIBLE;
+        }
         if self.contains(WindowFlags::ON_TASKBAR) {
             style_ex |= WS_EX_APPWINDOW;
+        } else {
+            style |= WS_POPUP;
         }
-        // if self.contains(WindowFlags::ALWAYS_ON_TOP) {
-        //     // Handled with SetWindowPos in apply_diff
-        // }
+        if self.contains(WindowFlags::ALWAYS_ON_TOP) {
+            style_ex |= WS_EX_TOPMOST;
+        }
         if self.contains(WindowFlags::NO_BACK_BUFFER) {
             style_ex |= WS_EX_NOREDIRECTIONBITMAP;
         }
@@ -193,9 +195,9 @@ impl WindowFlags {
         if self.contains(WindowFlags::CHILD) {
             style |= WS_CHILD; // This is incompatible with WS_POPUP if that gets added eventually.
         }
-        // if self.contains(WindowFlags::MAXIMIZED) {
-        //     // Handled with ShowWindow call in apply_diff
-        // }
+        if self.contains(WindowFlags::MAXIMIZED) {
+            style |= WS_MAXIMIZE;
+        }
 
         style |= WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
         style_ex |= WS_EX_ACCEPTFILES;
@@ -210,12 +212,6 @@ impl WindowFlags {
         let diff = self ^ new;
         if diff == WindowFlags::empty() {
             return;
-        }
-
-        let (style, style_ex) = new.to_window_styles();
-        unsafe{
-            winuser::SetWindowLongW(window, winuser::GWL_STYLE, style as _);
-            winuser::SetWindowLongW(window, winuser::GWL_EXSTYLE, style_ex as _);
         }
 
         if diff.contains(WindowFlags::MAXIMIZED) {
@@ -256,6 +252,12 @@ impl WindowFlags {
                 );
                 winuser::UpdateWindow(window);
             }
+        }
+
+        let (style, style_ex) = new.to_window_styles();
+        unsafe{
+            winuser::SetWindowLongW(window, winuser::GWL_STYLE, style as _);
+            winuser::SetWindowLongW(window, winuser::GWL_EXSTYLE, style_ex as _);
         }
         unsafe {
             winuser::SetWindowPos(
