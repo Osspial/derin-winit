@@ -63,7 +63,7 @@ use platform::platform::event::{handle_extended_keys, process_key_params, vkey_t
 use platform::platform::icon::WinIcon;
 use platform::platform::raw_input::{get_raw_input_data, get_raw_mouse_button_state};
 use platform::platform::window::adjust_size;
-use platform::platform::window_state::{CursorFlags, WindowState};
+use platform::platform::window_state::{CursorFlags, WindowFlags, WindowState};
 
 /// Dummy object that allows inserting a window's state.
 // We store a pointer in order to !impl Send and Sync.
@@ -330,6 +330,10 @@ lazy_static! {
             winuser::RegisterWindowMessageA("Winit::InitialDpiMsg\0".as_ptr() as LPCSTR)
         }
     };
+    // WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag.
+    pub static ref SET_RETAIN_STATE_ON_SIZE_MSG_ID: u32 = unsafe {
+        winuser::RegisterWindowMessageA("Winit::SetRetainMaximized\0".as_ptr() as LPCSTR)
+    };
     static ref THREAD_EVENT_TARGET_WINDOW_CLASS: Vec<u16> = unsafe {
         use std::ffi::OsStr;
         use std::os::windows::ffi::OsStrExt;
@@ -480,17 +484,12 @@ pub unsafe extern "system" fn callback(
     run_catch_panic(-1, || callback_inner(window, msg, wparam, lparam))
 }
 
-pub static mut PRINT: bool = false;
-
 unsafe fn callback_inner(
     window: HWND,
     msg: UINT,
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    if PRINT {
-        println!("msg {:x} {:x} {:x}", msg, wparam, lparam);
-    }
     match msg {
         winuser::WM_CREATE => {
             use winapi::shared::winerror::{OLE_E_WRONGCOMPOBJ, RPC_E_CHANGED_MODE};
@@ -593,6 +592,15 @@ unsafe fn callback_inner(
             CONTEXT_STASH.with(|context_stash| {
                 let mut context_stash = context_stash.borrow_mut();
                 let cstash = context_stash.as_mut().unwrap();
+
+                if let Some(w) = cstash.windows.get_mut(&window) {
+                    let mut w = w.lock().unwrap();
+
+                    if !w.window_flags().contains(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE) {
+                        let maximized = wparam == winuser::SIZE_MAXIMIZED;
+                        w.set_window_flags_in_place(|f| f.set(WindowFlags::MAXIMIZED, maximized));
+                    }
+                }
 
                 cstash.sender.send(EventsLoopEvent::WinitEvent(event)).ok();
             });
@@ -1212,6 +1220,16 @@ unsafe fn callback_inner(
                     | winuser::SWP_NOZORDER
                     | winuser::SWP_NOACTIVATE,
                 );
+                0
+            } else if msg == *SET_RETAIN_STATE_ON_SIZE_MSG_ID {
+                CONTEXT_STASH.with(|context_stash| {
+                    if let Some(cstash) = context_stash.borrow().as_ref() {
+                        if let Some(wstash) = cstash.windows.get(&window) {
+                            let mut window_state = wstash.lock().unwrap();
+                            window_state.set_window_flags_in_place(|f| f.set(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE, wparam != 0));
+                        }
+                    }
+                });
                 0
             } else {
                 winuser::DefWindowProcW(window, msg, wparam, lparam)

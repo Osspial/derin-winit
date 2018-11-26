@@ -255,7 +255,12 @@ impl Window {
         let window_state = Arc::clone(&self.window_state);
 
         self.events_loop_proxy.execute_in_thread(move |_| {
-            window_state.lock().unwrap().set_window_flags(window.0, true, |f| f.set(WindowFlags::RESIZABLE, resizable));
+            WindowState::set_window_flags(
+                window_state.lock().unwrap(),
+                window.0,
+                None,
+                |f| f.set(WindowFlags::RESIZABLE, resizable),
+            );
         });
     }
 
@@ -345,8 +350,12 @@ impl Window {
         let window_state = Arc::clone(&self.window_state);
 
         self.events_loop_proxy.execute_in_thread(move |_| {
-            let result = window_state.lock().unwrap()
-                .set_window_flags(window.0, true, |f| f.set(WindowFlags::MAXIMIZED, maximized));
+            WindowState::set_window_flags(
+                window_state.lock().unwrap(),
+                window.0,
+                None,
+                |f| f.set(WindowFlags::MAXIMIZED, maximized),
+            );
         });
     }
 
@@ -370,22 +379,17 @@ impl Window {
                             client_rect,
                             dpi_factor: window_state_lock.dpi_factor
                         });
-                        println!("save client rect {} {} {} {}", client_rect.top, client_rect.left, client_rect.right, client_rect.bottom);
 
                         window_state_lock.fullscreen = monitor.take();
-                        window_state_lock.refresh_window_state(false, window.0);
-
-                        drop(window_state_lock);
-                        winuser::SetWindowPos(
+                        WindowState::refresh_window_state(
+                            window_state_lock,
                             window.0,
-                            ptr::null_mut(),
-                            x as c_int,
-                            y as c_int,
-                            width as c_int,
-                            height as c_int,
-                            winuser::SWP_NOZORDER |
-                            winuser::SWP_NOACTIVATE |
-                            winuser::SWP_FRAMECHANGED,
+                            Some(RECT {
+                                left: x,
+                                top: y,
+                                right: x + width as c_int,
+                                bottom: y + height as c_int,
+                            })
                         );
 
                         mark_fullscreen(window.0, true);
@@ -395,8 +399,6 @@ impl Window {
                     self.events_loop_proxy.execute_in_thread(move |_| {
                         let mut window_state_lock = window_state.lock().unwrap();
                         window_state_lock.fullscreen = None;
-                        window_state_lock.refresh_window_state(false, window.0);
-
 
                         if let Some(SavedWindow{client_rect, dpi_factor}) = window_state_lock.saved_window {
                             let rect = util::adjust_window_rect(window.0, client_rect).expect("adjust client rect failed!");
@@ -404,17 +406,10 @@ impl Window {
                             window_state_lock.dpi_factor = dpi_factor;
                             window_state_lock.saved_window = None;
 
-                            drop(window_state_lock);
-                            winuser::SetWindowPos(
+                            WindowState::refresh_window_state(
+                                window_state_lock,
                                 window.0,
-                                ptr::null_mut(),
-                                rect.left,
-                                rect.top,
-                                rect.right - rect.left,
-                                rect.bottom - rect.top,
-                                  winuser::SWP_NOZORDER
-                                | winuser::SWP_NOACTIVATE
-                                | winuser::SWP_FRAMECHANGED,
+                                Some(client_rect)
                             );
                         }
 
@@ -432,10 +427,12 @@ impl Window {
 
         self.events_loop_proxy.execute_in_thread(move |_| {
             let client_rect = util::get_client_rect(window.0).expect("get client rect failed!");
-            unsafe{ ::platform::platform::events_loop::PRINT = true; }
-            window_state.lock().unwrap()
-                .set_window_flags(window.0, true, |f| f.set(WindowFlags::DECORATIONS, decorations));
-            unsafe{ ::platform::platform::events_loop::PRINT = false; }
+            WindowState::set_window_flags(
+                window_state.lock().unwrap(),
+                window.0,
+                Some(client_rect),
+                |f| f.set(WindowFlags::DECORATIONS, decorations),
+            );
         });
     }
 
@@ -445,8 +442,12 @@ impl Window {
         let window_state = Arc::clone(&self.window_state);
 
         self.events_loop_proxy.execute_in_thread(move |_| {
-            let result = window_state.lock().unwrap()
-                .set_window_flags(window.0, true, |f| f.set(WindowFlags::ALWAYS_ON_TOP, always_on_top));
+            WindowState::set_window_flags(
+                window_state.lock().unwrap(),
+                window.0,
+                None,
+                |f| f.set(WindowFlags::ALWAYS_ON_TOP, always_on_top),
+            );
         });
     }
 
@@ -673,9 +674,14 @@ unsafe fn init(
             taskbar_icon,
             dpi_factor,
         );
-        window_state.set_window_flags(real_window.0, true, |f| *f = window_flags);
-        // Creating a mutex to track the current window state
-        Arc::new(Mutex::new(window_state))
+        let window_state = Arc::new(Mutex::new(window_state));
+        WindowState::set_window_flags(
+            window_state.lock().unwrap(),
+            real_window.0,
+            None,
+            |f| *f = window_flags,
+        );
+        window_state
     };
 
     // making the window transparent

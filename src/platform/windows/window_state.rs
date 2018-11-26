@@ -1,7 +1,8 @@
 use {MouseCursor, WindowAttributes};
 use std::{io, mem, ptr};
+use std::sync::MutexGuard;
 use dpi::LogicalSize;
-use platform::platform::{util, Cursor};
+use platform::platform::{util, events_loop, Cursor};
 use platform::platform::icon::WinIcon;
 use winapi::shared::windef::{RECT, HWND};
 use winapi::shared::minwindef::{DWORD, WPARAM, LPARAM};
@@ -57,9 +58,17 @@ bitflags! {
         const TRANSPARENT    = 1 << 6;
         const CHILD          = 1 << 7;
         const MAXIMIZED      = 1 << 8;
+
         /// Marker flag for fullscreen. Should always match `WindowState::fullscreen`, but is
         /// included here to make masking easier.
-        const FULLSCREEN     = 1 << 9;
+        const MARKER_FULLSCREEN = 1 << 9;
+
+        /// The `WM_SIZE` event contains some parameters that can effect the state of `WindowFlags`.
+        /// In most cases, it's okay to let those parameters change the state. However, when we're
+        /// running the `WindowFlags::apply_diff` function, we *don't* want those parameters to
+        /// effect our stored state, because the purpose of `apply_diff` is to update the actual
+        /// window's state to match our stored state. This controls whether to accept those changes.
+        const MARKER_RETAIN_STATE_ON_SIZE = 1 << 10;
 
         const FULLSCREEN_AND_MASK = !(
             WindowFlags::DECORATIONS.bits |
@@ -102,18 +111,28 @@ impl WindowState {
         self.window_flags
     }
 
-    pub fn set_window_flags<F>(&mut self, window: HWND, refresh_frame: bool, f: F)
+    pub fn set_window_flags<F>(mut this: MutexGuard<Self>, window: HWND, set_client_rect: Option<RECT>, f: F)
         where F: FnOnce(&mut WindowFlags)
     {
-        let old_flags = self.window_flags;
-        f(&mut self.window_flags);
-        self.window_flags.set(WindowFlags::FULLSCREEN, self.fullscreen.is_some());
+        let old_flags = this.window_flags;
+        f(&mut this.window_flags);
 
-        old_flags.apply_diff(self.window_flags, refresh_frame, window);
+        let is_fullscreen = this.fullscreen.is_some();
+        this.window_flags.set(WindowFlags::MARKER_FULLSCREEN, is_fullscreen);
+        let new_flags = this.window_flags;
+
+        drop(this);
+        old_flags.apply_diff(window, new_flags, set_client_rect);
     }
 
-    pub fn refresh_window_state(&mut self, refresh_frame: bool, window: HWND) {
-        self.set_window_flags(window, refresh_frame, |_| ());
+    pub fn refresh_window_state(this: MutexGuard<Self>, window: HWND, set_client_rect: Option<RECT>) {
+        Self::set_window_flags(this, window, set_client_rect, |_| ());
+    }
+
+    pub fn set_window_flags_in_place<F>(&mut self, f: F)
+        where F: FnOnce(&mut WindowFlags)
+    {
+        f(&mut self.window_flags);
     }
 }
 
@@ -146,7 +165,7 @@ impl MouseProperties {
 
 impl WindowFlags {
     fn mask(mut self) -> WindowFlags {
-        if self.contains(WindowFlags::FULLSCREEN) {
+        if self.contains(WindowFlags::MARKER_FULLSCREEN) {
             self &= WindowFlags::FULLSCREEN_AND_MASK;
         }
         if !self.contains(WindowFlags::VISIBLE) {
@@ -203,7 +222,7 @@ impl WindowFlags {
     }
 
     /// Adjust the window client rectangle to the return value, if present.
-    fn apply_diff(mut self, mut new: WindowFlags, refresh_frame: bool, set_client_rect: Option<RECT>, window: HWND) {
+    fn apply_diff(mut self, window: HWND, mut new: WindowFlags, set_client_rect: Option<RECT>) {
         self = self.mask();
         new = new.mask();
 
@@ -242,36 +261,46 @@ impl WindowFlags {
             let (style, style_ex) = new.to_window_styles();
 
             unsafe {
+                winuser::SendMessageW(window, *events_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID, 1, 0);
+
                 winuser::SetWindowLongW(window, winuser::GWL_STYLE, style as _);
                 winuser::SetWindowLongW(window, winuser::GWL_EXSTYLE, style_ex as _);
 
-                if refresh_frame {
-                    let client_rect = set_client_rect
-                        .and_then(|r| util::adjust_window_rect_with_styles(window, style, style_ex, r))
-                        .unwrap_or(mem::zeroed());
-
-                    let (x, y, w, h) = (
-                        client_rect.left,
-                        client_rect.top,
-                        client_rect.right - client_rect.left,
-                        client_rect.bottom - client_rect.top,
-                    );
-                    // Refresh the window frame.
-                    winuser::SetWindowPos(
-                        window,
-                        ptr::null_mut(),
-                        x, y, w, h,
-                        winuser::SWP_ASYNCWINDOWPOS
-                        | winuser::SWP_NOMOVE
-                        | winuser::SWP_NOSIZE
-                        | winuser::SWP_NOZORDER
-                        | winuser::SWP_FRAMECHANGED,
-                    );
+                match set_client_rect.and_then(|r| util::adjust_window_rect_with_styles(window, style, style_ex, r)) {
+                    Some(client_rect) => {
+                        let (x, y, w, h) = (
+                            client_rect.left,
+                            client_rect.top,
+                            client_rect.right - client_rect.left,
+                            client_rect.bottom - client_rect.top,
+                        );
+                        winuser::SetWindowPos(
+                            window,
+                            ptr::null_mut(),
+                            x, y, w, h,
+                            winuser::SWP_NOZORDER
+                            | winuser::SWP_FRAMECHANGED,
+                        );
+                    },
+                    None => {
+                        // Refresh the window frame.
+                        winuser::SetWindowPos(
+                            window,
+                            ptr::null_mut(),
+                            0, 0, 0, 0,
+                            winuser::SWP_NOZORDER
+                            | winuser::SWP_NOMOVE
+                            | winuser::SWP_NOSIZE
+                            | winuser::SWP_FRAMECHANGED,
+                        );
+                    }
                 }
+                winuser::SendMessageW(window, *events_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID, 0, 0);
             }
         }
 
         if diff.contains(WindowFlags::MAXIMIZED) {
+            println!("set maximized {}", new.contains(WindowFlags::MAXIMIZED));
             unsafe {
                 winuser::ShowWindow(
                     window,
