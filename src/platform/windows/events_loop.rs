@@ -480,7 +480,7 @@ pub unsafe extern "system" fn callback(
     run_catch_panic(-1, || callback_inner(window, msg, wparam, lparam))
 }
 
-pub static mut PRINT_MSG: bool = false;
+pub static mut PRINT: bool = false;
 
 unsafe fn callback_inner(
     window: HWND,
@@ -488,10 +488,9 @@ unsafe fn callback_inner(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    if PRINT_MSG {
+    if PRINT {
         println!("msg {:x} {:x} {:x}", msg, wparam, lparam);
     }
-
     match msg {
         winuser::WM_CREATE => {
             use winapi::shared::winerror::{OLE_E_WRONGCOMPOBJ, RPC_E_CHANGED_MODE};
@@ -582,18 +581,18 @@ unsafe fn callback_inner(
             let w = LOWORD(lparam as DWORD) as u32;
             let h = HIWORD(lparam as DWORD) as u32;
 
+            let dpi_factor = get_hwnd_scale_factor(window);
+            let logical_size = LogicalSize::from_physical((w, h), dpi_factor);
+            let event = Event::WindowEvent {
+                window_id: SuperWindowId(WindowId(window)),
+                event: Resized(logical_size),
+            };
+
             // Wait for the parent thread to process the resize event before returning from the
             // callback.
             CONTEXT_STASH.with(|context_stash| {
                 let mut context_stash = context_stash.borrow_mut();
                 let cstash = context_stash.as_mut().unwrap();
-
-                let dpi_factor = get_hwnd_scale_factor(window);
-                let logical_size = LogicalSize::from_physical((w, h), dpi_factor);
-                let event = Event::WindowEvent {
-                    window_id: SuperWindowId(WindowId(window)),
-                    event: Resized(logical_size),
-                };
 
                 cstash.sender.send(EventsLoopEvent::WinitEvent(event)).ok();
             });
@@ -1149,7 +1148,6 @@ unsafe fn callback_inner(
             // This prevents us from re-applying DPI adjustment to the restored size after exiting
             // fullscreen (the restored size is already DPI adjusted).
             if allow_resize {
-                println!("allow resize");
                 // Resize window to the size suggested by Windows.
                 let rect = &*(lparam as *const RECT);
                 winuser::SetWindowPos(
@@ -1169,35 +1167,6 @@ unsafe fn callback_inner(
             });
 
             0
-        },
-
-        winuser::WM_NCCALCSIZE => {
-            if wparam == 1 {
-                let size_params = *(lparam as *mut winuser::NCCALCSIZE_PARAMS);
-                let new_window_rect_proposed = size_params.rgrc[0];
-                let old_window_rect = size_params.rgrc[1];
-                let old_client_rect = size_params.rgrc[2];
-
-                // If the window resize operation only effects the client rectangle (i.e. the outer
-                // window rect is the same, but is different from the old client rectangle),
-                // preserve the old client rect.
-                let preserve_client_rect =
-                     util::rect_eq(&new_window_rect_proposed, &old_window_rect) &&
-                    !util::rect_eq(&old_window_rect, &old_client_rect);
-
-                if preserve_client_rect {
-                    let size_params = &mut *(lparam as *mut winuser::NCCALCSIZE_PARAMS);
-                    // Make sure the new client rect is the same as the old client rect.
-                    size_params.rgrc[0] = old_client_rect;
-                    size_params.rgrc[1] = old_client_rect;
-                    size_params.rgrc[2] = old_client_rect;
-                    0
-                } else {
-                    winuser::DefWindowProcW(window, msg, wparam, lparam)
-                }
-            } else {
-                winuser::DefWindowProcW(window, msg, wparam, lparam)
-            }
         },
 
         _ => {

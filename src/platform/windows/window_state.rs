@@ -1,5 +1,5 @@
 use {MouseCursor, WindowAttributes};
-use std::{io, ptr};
+use std::{io, mem, ptr};
 use dpi::LogicalSize;
 use platform::platform::{util, Cursor};
 use platform::platform::icon::WinIcon;
@@ -112,7 +112,7 @@ impl WindowState {
         old_flags.apply_diff(self.window_flags, refresh_frame, window);
     }
 
-    pub fn refresh_window_flags(&mut self, refresh_frame: bool, window: HWND) {
+    pub fn refresh_window_state(&mut self, refresh_frame: bool, window: HWND) {
         self.set_window_flags(window, refresh_frame, |_| ());
     }
 }
@@ -203,7 +203,7 @@ impl WindowFlags {
     }
 
     /// Adjust the window client rectangle to the return value, if present.
-    fn apply_diff(mut self, mut new: WindowFlags, refresh_frame: bool, window: HWND) {
+    fn apply_diff(mut self, mut new: WindowFlags, refresh_frame: bool, set_client_rect: Option<RECT>, window: HWND) {
         self = self.mask();
         new = new.mask();
 
@@ -212,17 +212,6 @@ impl WindowFlags {
             return;
         }
 
-        if diff.contains(WindowFlags::MAXIMIZED) {
-            unsafe {
-                winuser::ShowWindow(
-                    window,
-                    match new.contains(WindowFlags::MAXIMIZED) {
-                        true => winuser::SW_MAXIMIZE,
-                        false => winuser::SW_RESTORE
-                    }
-                );
-            }
-        }
         if diff.contains(WindowFlags::VISIBLE) {
             unsafe {
                 winuser::ShowWindow(
@@ -257,11 +246,21 @@ impl WindowFlags {
                 winuser::SetWindowLongW(window, winuser::GWL_EXSTYLE, style_ex as _);
 
                 if refresh_frame {
+                    let client_rect = set_client_rect
+                        .and_then(|r| util::adjust_window_rect_with_styles(window, style, style_ex, r))
+                        .unwrap_or(mem::zeroed());
+
+                    let (x, y, w, h) = (
+                        client_rect.left,
+                        client_rect.top,
+                        client_rect.right - client_rect.left,
+                        client_rect.bottom - client_rect.top,
+                    );
                     // Refresh the window frame.
                     winuser::SetWindowPos(
                         window,
                         ptr::null_mut(),
-                        0, 0, 0, 0,
+                        x, y, w, h,
                         winuser::SWP_ASYNCWINDOWPOS
                         | winuser::SWP_NOMOVE
                         | winuser::SWP_NOSIZE
@@ -269,6 +268,18 @@ impl WindowFlags {
                         | winuser::SWP_FRAMECHANGED,
                     );
                 }
+            }
+        }
+
+        if diff.contains(WindowFlags::MAXIMIZED) {
+            unsafe {
+                winuser::ShowWindow(
+                    window,
+                    match new.contains(WindowFlags::MAXIMIZED) {
+                        true => winuser::SW_MAXIMIZE,
+                        false => winuser::SW_RESTORE
+                    }
+                );
             }
         }
     }

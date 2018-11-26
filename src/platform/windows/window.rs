@@ -373,7 +373,7 @@ impl Window {
                         println!("save client rect {} {} {} {}", client_rect.top, client_rect.left, client_rect.right, client_rect.bottom);
 
                         window_state_lock.fullscreen = monitor.take();
-                        window_state_lock.refresh_window_flags(false, window.0);
+                        window_state_lock.refresh_window_state(false, window.0);
 
                         drop(window_state_lock);
                         winuser::SetWindowPos(
@@ -393,10 +393,9 @@ impl Window {
                 }
                 &None => {
                     self.events_loop_proxy.execute_in_thread(move |_| {
-                        ::platform::platform::events_loop::PRINT_MSG = true;
                         let mut window_state_lock = window_state.lock().unwrap();
                         window_state_lock.fullscreen = None;
-                        window_state_lock.refresh_window_flags(false, window.0);
+                        window_state_lock.refresh_window_state(false, window.0);
 
 
                         if let Some(SavedWindow{client_rect, dpi_factor}) = window_state_lock.saved_window {
@@ -405,31 +404,7 @@ impl Window {
                             window_state_lock.dpi_factor = dpi_factor;
                             window_state_lock.saved_window = None;
 
-                            let original_monitor = winuser::MonitorFromRect(&rect, winuser::MONITOR_DEFAULTTONEAREST);
-                            let original_monitor_rect = monitor::get_monitor_info(original_monitor).unwrap().rcMonitor;
-                            let original_monitor_center = (
-                                (original_monitor_rect.left + original_monitor_rect.right) / 2,
-                                (original_monitor_rect.top + original_monitor_rect.bottom) / 2,
-                            );
-                            let window_to_original_monitor = (
-                                original_monitor_center.0 - (rect.right - rect.left) / 2,
-                                original_monitor_center.1 - (rect.bottom - rect.top) / 2,
-                            );
-
                             drop(window_state_lock);
-
-                            winuser::SetWindowPos(
-                                window.0,
-                                ptr::null_mut(),
-                                window_to_original_monitor.0,
-                                window_to_original_monitor.1,
-                                0, 0,
-                                  winuser::SWP_NOSIZE
-                                | winuser::SWP_NOZORDER
-                                | winuser::SWP_NOACTIVATE
-                                | winuser::SWP_FRAMECHANGED,
-                            );
-
                             winuser::SetWindowPos(
                                 window.0,
                                 ptr::null_mut(),
@@ -444,7 +419,6 @@ impl Window {
                         }
 
                         mark_fullscreen(window.0, false);
-                        ::platform::platform::events_loop::PRINT_MSG = false;
                     });
                 }
             }
@@ -457,8 +431,11 @@ impl Window {
         let window_state = Arc::clone(&self.window_state);
 
         self.events_loop_proxy.execute_in_thread(move |_| {
+            let client_rect = util::get_client_rect(window.0).expect("get client rect failed!");
+            unsafe{ ::platform::platform::events_loop::PRINT = true; }
             window_state.lock().unwrap()
                 .set_window_flags(window.0, true, |f| f.set(WindowFlags::DECORATIONS, decorations));
+            unsafe{ ::platform::platform::events_loop::PRINT = false; }
         });
     }
 

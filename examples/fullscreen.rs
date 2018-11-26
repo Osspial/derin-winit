@@ -43,7 +43,9 @@ fn main() {
         match event {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => return ControlFlow::Break,
-                WindowEvent::Resized(size) => println!("resized {:?}", size.to_physical(window.get_hidpi_factor())),
+                WindowEvent::Resized(size) => {
+                    println!("resized  {:?}", size);
+                },
                 WindowEvent::KeyboardInput {
                     input:
                         winit::KeyboardInput {
