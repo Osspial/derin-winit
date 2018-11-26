@@ -300,7 +300,6 @@ impl WindowFlags {
         }
 
         if diff.contains(WindowFlags::MAXIMIZED) {
-            println!("set maximized {}", new.contains(WindowFlags::MAXIMIZED));
             unsafe {
                 winuser::ShowWindow(
                     window,
@@ -326,11 +325,11 @@ impl CursorFlags {
             }
         }
 
-        let cursor_in_client = util::get_cursor_pos()
-            .map(|pos| util::rect_contains(client_rect, pos))
-            .unwrap_or(false);
+        let cursor_in_client = self.contains(CursorFlags::IN_WINDOW);
         if cursor_in_client {
             util::set_cursor_hidden(self.contains(CursorFlags::HIDDEN));
+        } else {
+            util::set_cursor_hidden(false);
         }
 
         Ok(())

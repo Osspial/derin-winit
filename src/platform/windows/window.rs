@@ -284,7 +284,6 @@ impl Window {
 
     #[inline]
     pub fn grab_cursor(&self, grab: bool) -> Result<(), String> {
-        // TODO: REFRESH CURSOR STATE IN CALLBACK
         let window = self.window.clone();
         let window_state = Arc::clone(&self.window_state);
         let (tx, rx) = channel();
@@ -300,7 +299,6 @@ impl Window {
 
     #[inline]
     pub fn hide_cursor(&self, hide: bool) {
-        // TODO: REFRESH CURSOR STATE IN CALLBACK
         let window = self.window.clone();
         let window_state = Arc::clone(&self.window_state);
         let (tx, rx) = channel();

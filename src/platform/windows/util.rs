@@ -102,7 +102,7 @@ pub fn set_cursor_hidden(hidden: bool) {
     static HIDDEN: AtomicBool = AtomicBool::new(false);
     let changed = HIDDEN.swap(hidden, Ordering::SeqCst) ^ hidden;
     if changed {
-        unsafe{ winuser::ShowCursor(hidden as BOOL) };
+        unsafe{ winuser::ShowCursor(!hidden as BOOL) };
     }
 }
 
