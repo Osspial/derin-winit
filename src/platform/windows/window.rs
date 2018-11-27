@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex};
 use std::sync::mpsc::channel;
 
 use winapi::ctypes::c_int;
-use winapi::shared::minwindef::{BOOL, DWORD, FALSE, LPARAM, TRUE, UINT, WORD, WPARAM};
-use winapi::shared::windef::{HWND, LPPOINT, POINT, RECT};
+use winapi::shared::minwindef::{DWORD, LPARAM, UINT, WORD, WPARAM};
+use winapi::shared::windef::{HWND, POINT, RECT};
 use winapi::um::{combaseapi, dwmapi, libloaderapi, winuser};
 use winapi::um::objbase::COINIT_MULTITHREADED;
 use winapi::um::shobjidl_core::{CLSID_TaskbarList, ITaskbarList2};
@@ -26,13 +26,13 @@ use {
     PhysicalSize,
     WindowAttributes,
 };
-use platform::platform::{Cursor, PlatformSpecificWindowBuilderAttributes, WindowId};
+use platform::platform::{PlatformSpecificWindowBuilderAttributes, WindowId};
 use platform::platform::dpi::{dpi_to_scale_factor, get_hwnd_dpi};
 use platform::platform::events_loop::{self, EventsLoop, DESTROY_MSG_ID, INITIAL_DPI_MSG_ID};
 use platform::platform::icon::{self, IconType, WinIcon};
 use platform::platform::monitor::get_available_monitors;
 use platform::platform::raw_input::register_all_mice_and_keyboards_for_raw_input;
-use platform::platform::{monitor, util};
+use platform::platform::util;
 use platform::platform::window_state::{CursorFlags, SavedWindow, WindowFlags, WindowState};
 
 const WS_RESIZABLE: DWORD = winuser::WS_SIZEBOX | winuser::WS_MAXIMIZEBOX;
@@ -604,7 +604,7 @@ unsafe fn init(
     window_flags.set(WindowFlags::ALWAYS_ON_TOP, attributes.always_on_top);
     window_flags.set(WindowFlags::NO_BACK_BUFFER, pl_attribs.no_redirection_bitmap);
     window_flags.set(WindowFlags::TRANSPARENT, attributes.transparent);
-    window_flags.set(WindowFlags::VISIBLE, attributes.visible);
+    // WindowFlags::VISIBLE is set down below after the window has been configured.
     window_flags.set(WindowFlags::RESIZABLE, attributes.resizable);
     window_flags.set(WindowFlags::CHILD, pl_attribs.parent.is_some());
     window_flags.set(WindowFlags::MAXIMIZED, attributes.maximized);
@@ -665,23 +665,6 @@ unsafe fn init(
         );
     }
 
-    let window_state = {
-        let mut window_state = WindowState::new(
-            &attributes,
-            window_icon,
-            taskbar_icon,
-            dpi_factor,
-        );
-        let window_state = Arc::new(Mutex::new(window_state));
-        WindowState::set_window_flags(
-            window_state.lock().unwrap(),
-            real_window.0,
-            None,
-            |f| *f = window_flags,
-        );
-        window_state
-    };
-
     // making the window transparent
     if attributes.transparent && !pl_attribs.no_redirection_bitmap {
         let region = CreateRectRgn(0, 0, -1, -1); // makes the window transparent
@@ -708,6 +691,25 @@ unsafe fn init(
             winuser::SetLayeredWindowAttributes(real_window.0, color_key, opacity, winuser::LWA_ALPHA);
         }
     }
+
+    window_flags.set(WindowFlags::VISIBLE, attributes.visible);
+
+    let window_state = {
+        let mut window_state = WindowState::new(
+            &attributes,
+            window_icon,
+            taskbar_icon,
+            dpi_factor,
+        );
+        let window_state = Arc::new(Mutex::new(window_state));
+        WindowState::set_window_flags(
+            window_state.lock().unwrap(),
+            real_window.0,
+            None,
+            |f| *f = window_flags,
+        );
+        window_state
+    };
 
     let win = Window {
         window: real_window,

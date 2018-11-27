@@ -51,7 +51,7 @@ use {
     WindowId as SuperWindowId,
 };
 use events::{DeviceEvent, Touch, TouchPhase};
-use platform::platform::{event, Cursor, WindowId, DEVICE_ID, wrap_device_id, util};
+use platform::platform::{event, WindowId, DEVICE_ID, wrap_device_id, util};
 use platform::platform::dpi::{
     become_dpi_aware,
     dpi_to_scale_factor,
@@ -60,7 +60,6 @@ use platform::platform::dpi::{
 };
 use platform::platform::drop_handler::FileDropHandler;
 use platform::platform::event::{handle_extended_keys, process_key_params, vkey_to_winit_vkey};
-use platform::platform::icon::WinIcon;
 use platform::platform::raw_input::{get_raw_input_data, get_raw_mouse_button_state};
 use platform::platform::window::adjust_size;
 use platform::platform::window_state::{CursorFlags, WindowFlags, WindowState};
@@ -630,7 +629,6 @@ unsafe fn callback_inner(
             use events::WindowEvent::{CursorEntered, CursorMoved};
             let x = windowsx::GET_X_LPARAM(lparam);
             let y = windowsx::GET_Y_LPARAM(lparam);
-            let cursor_pos = POINT { x, y };
 
             let mouse_was_outside_window = CONTEXT_STASH.with(|context_stash| {
                 let mut context_stash = context_stash.borrow_mut();

@@ -1,12 +1,11 @@
 use {MouseCursor, WindowAttributes};
-use std::{io, mem, ptr};
+use std::{io, ptr};
 use std::sync::MutexGuard;
 use dpi::LogicalSize;
-use platform::platform::{util, events_loop, Cursor};
+use platform::platform::{util, events_loop};
 use platform::platform::icon::WinIcon;
 use winapi::shared::windef::{RECT, HWND};
-use winapi::shared::minwindef::{DWORD, WPARAM, LPARAM};
-use winapi::um::winnt::LONG;
+use winapi::shared::minwindef::DWORD;
 use winapi::um::winuser;
 
 /// Contains information about states and the window that the callback is going to use.
