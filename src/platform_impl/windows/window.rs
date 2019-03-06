@@ -1,6 +1,6 @@
 #![cfg(target_os = "windows")]
 
-use std::{io, mem, ptr};
+use std::{mem, io, ptr};
 use std::cell::Cell;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
@@ -320,7 +320,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_cursor_grab(&self, grab: bool) -> Result<(), io::Error> {
+    pub fn set_cursor_grab(&self, grab: bool) {
         let window = self.window.clone();
         let window_state = Arc::clone(&self.window_state);
         let (tx, rx) = channel();
@@ -330,7 +330,7 @@ impl Window {
                 .set_cursor_flags(window.0, |f| f.set(CursorFlags::GRABBED, grab));
             let _ = tx.send(result);
         });
-        rx.recv().unwrap()
+        rx.recv().unwrap().ok();
     }
 
     #[inline]
@@ -367,10 +367,10 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_cursor_position(&self, logical_position: LogicalPosition) -> Result<(), io::Error> {
+    pub fn set_cursor_position(&self, logical_position: LogicalPosition) {
         let dpi_factor = self.get_hidpi_factor();
         let (x, y) = logical_position.to_physical(dpi_factor).into();
-        self.set_cursor_position_physical(x, y)
+        self.set_cursor_position_physical(x, y).ok();
     }
 
     #[inline]
@@ -469,7 +469,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_always_on_top(&self, always_on_top: bool) {
+    pub fn set_always_on_top(&self, always_on_top: bool) -> Result<(), NotSupportedError> {
         let window = self.window.clone();
         let window_state = Arc::clone(&self.window_state);
 
@@ -481,6 +481,8 @@ impl Window {
                 |f| f.set(WindowFlags::ALWAYS_ON_TOP, always_on_top),
             );
         });
+
+        Ok(())
     }
 
     #[inline]
@@ -491,7 +493,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_window_icon(&self, mut window_icon: Option<Icon>) {
+    pub fn set_window_icon(&self, mut window_icon: Option<Icon>) -> Result<(), NotSupportedError> {
         let window_icon = window_icon
             .take()
             .map(|icon| WinIcon::from_icon(icon).expect("Failed to create `ICON_SMALL`"));
@@ -501,6 +503,8 @@ impl Window {
             icon::unset_for_window(self.window.0, IconType::Small);
         }
         self.window_state.lock().window_icon = window_icon;
+
+        Ok(())
     }
 
     #[inline]

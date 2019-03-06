@@ -1,10 +1,11 @@
+use std::io;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, Weak};
 
 use dpi::{LogicalPosition, LogicalSize};
 use platform_impl::{MonitorHandle as PlatformMonitorHandle, PlatformSpecificWindowBuilderAttributes as PlAttributes};
 use monitor::MonitorHandle as RootMonitorHandle;
-use window::{CreationError, WindowAttributes, MouseCursor};
+use window::{CreationError, WindowAttributes, CursorIcon, NotSupportedError};
 
 use sctk::surface::{get_dpi_factor, get_outputs};
 use sctk::window::{ConceptFrame, Event as WEvent, Window as SWindow, Theme};
@@ -28,7 +29,7 @@ pub struct Window {
 
 impl Window {
     pub fn new<T>(evlp: &EventLoopWindowTarget<T>, attributes: WindowAttributes, pl_attribs: PlAttributes) -> Result<Window, CreationError> {
-        let (width, height) = attributes.dimensions.map(Into::into).unwrap_or((800, 600));
+        let (width, height) = attributes.inner_size.map(Into::into).unwrap_or((800, 600));
         // Create the window
         let size = Arc::new(Mutex::new((width, height)));
 
@@ -104,8 +105,8 @@ impl Window {
         frame.set_title(attributes.title);
 
         // min-max dimensions
-        frame.set_min_size(attributes.min_dimensions.map(Into::into));
-        frame.set_max_size(attributes.max_dimensions.map(Into::into));
+        frame.set_min_size(attributes.min_inner_size.map(Into::into));
+        frame.set_max_size(attributes.max_inner_size.map(Into::into));
 
         let kill_switch = Arc::new(Mutex::new(false));
         let need_frame_refresh = Arc::new(Mutex::new(true));
@@ -158,24 +159,22 @@ impl Window {
     }
 
     #[inline]
-    pub fn get_position(&self) -> Option<LogicalPosition> {
-        // Not possible with wayland
-        None
+    pub fn get_outer_position(&self) -> Result<LogicalPosition, NotSupportedError> {
+        Err(NotSupportedError::new())
     }
 
     #[inline]
-    pub fn get_inner_position(&self) -> Option<LogicalPosition> {
-        // Not possible with wayland
-        None
+    pub fn get_inner_position(&self) -> Result<LogicalPosition, NotSupportedError> {
+        Err(NotSupportedError::new())
     }
 
     #[inline]
-    pub fn set_position(&self, _pos: LogicalPosition) {
-        // Not possible with wayland
+    pub fn set_outer_position(&self, _pos: LogicalPosition) -> Result<(), NotSupportedError> {
+        Err(NotSupportedError::new())
     }
 
-    pub fn get_inner_size(&self) -> Option<LogicalSize> {
-        Some(self.size.lock().unwrap().clone().into())
+    pub fn get_inner_size(&self) -> LogicalSize {
+        self.size.lock().unwrap().clone().into()
     }
 
     pub fn request_redraw(&self) {
@@ -183,10 +182,10 @@ impl Window {
     }
 
     #[inline]
-    pub fn get_outer_size(&self) -> Option<LogicalSize> {
+    pub fn get_outer_size(&self) -> LogicalSize {
         let (w, h) = self.size.lock().unwrap().clone();
         // let (w, h) = super::wayland_window::add_borders(w as i32, h as i32);
-        Some((w, h).into())
+        (w, h).into()
     }
 
     #[inline]
@@ -198,13 +197,13 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_min_dimensions(&self, dimensions: Option<LogicalSize>) {
-        self.frame.lock().unwrap().set_min_size(dimensions.map(Into::into));
+    pub fn set_min_inner_size(&self, inner_size: Option<LogicalSize>) {
+        self.frame.lock().unwrap().set_min_size(inner_size.map(Into::into));
     }
 
     #[inline]
-    pub fn set_max_dimensions(&self, dimensions: Option<LogicalSize>) {
-        self.frame.lock().unwrap().set_max_size(dimensions.map(Into::into));
+    pub fn set_max_inner_size(&self, inner_size: Option<LogicalSize>) {
+        self.frame.lock().unwrap().set_max_size(inner_size.map(Into::into));
     }
 
     #[inline]
@@ -250,23 +249,24 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_cursor(&self, _cursor: MouseCursor) {
+    pub fn set_cursor_icon(&self, _cursor: CursorIcon) {
         // TODO
     }
 
     #[inline]
-    pub fn hide_cursor(&self, _hide: bool) {
+    pub fn set_cursor_visible(&self, _visible: bool) {
         // TODO: This isn't possible on Wayland yet
     }
 
     #[inline]
-    pub fn grab_cursor(&self, _grab: bool) -> Result<(), String> {
-        Err("Cursor grabbing is not yet possible on Wayland.".to_owned())
+    pub fn set_cursor_grab(&self, _grab: bool) {
+        // TODO: implement via https://wiki.archlinux.org/index.php/wayland#Input_grabbing_in_games,_remote_desktop_and_VM_windows
     }
 
     #[inline]
-    pub fn set_cursor_position(&self, _pos: LogicalPosition) -> Result<(), String> {
-        Err("Setting the cursor position is not yet possible on Wayland.".to_owned())
+    pub fn set_cursor_position(&self, _pos: LogicalPosition) {
+        // TODO: implement. afaik this isn't yet possible through the wayland protocols, but it may
+        // be possible by emulating cursor input via uinput (https://www.kernel.org/doc/html/v4.12/input/uinput.html).
     }
 
     pub fn get_display(&self) -> &Display {

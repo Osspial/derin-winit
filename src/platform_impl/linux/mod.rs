@@ -1,7 +1,7 @@
 #![cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
 
 use std::collections::VecDeque;
-use std::{env, mem};
+use std::{env, io, mem};
 use std::ffi::CStr;
 use std::os::raw::*;
 use std::sync::Arc;
@@ -13,7 +13,7 @@ use dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
 use icon::Icon;
 use event_loop::{EventLoopClosed, ControlFlow, EventLoopWindowTarget as RootELW};
 use monitor::MonitorHandle as RootMonitorHandle;
-use window::{WindowAttributes, CreationError, MouseCursor};
+use window::{WindowAttributes, CreationError, CursorIcon, NotSupportedError};
 //use self::x11::{XConnection, XError};
 //use self::x11::ffi::XVisualInfo;
 //pub use self::x11::XNotSupported;
@@ -177,15 +177,15 @@ impl Window {
     }
 
     #[inline]
-    pub fn get_outer_position(&self) -> Option<LogicalPosition> {
+    pub fn get_outer_position(&self) -> Result<LogicalPosition, NotSupportedError> {
         match self {
-            //&Window::X(ref w) => w.get_position(),
-            &Window::Wayland(ref w) => w.get_position(),
+            //&Window::X(ref w) => w.get_outer_position(),
+            &Window::Wayland(ref w) => w.get_outer_position(),
         }
     }
 
     #[inline]
-    pub fn get_inner_position(&self) -> Option<LogicalPosition> {
+    pub fn get_inner_position(&self) -> Result<LogicalPosition, NotSupportedError> {
         match self {
             //&Window::X(ref m) => m.get_inner_position(),
             &Window::Wayland(ref m) => m.get_inner_position(),
@@ -193,15 +193,15 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_outer_position(&self, position: LogicalPosition) {
+    pub fn set_outer_position(&self, position: LogicalPosition) -> Result<(), NotSupportedError> {
         match self {
-            //&Window::X(ref w) => w.set_position(position),
-            &Window::Wayland(ref w) => w.set_position(position),
+            //&Window::X(ref w) => w.set_outer_position(position),
+            &Window::Wayland(ref w) => w.set_outer_position(position),
         }
     }
 
     #[inline]
-    pub fn get_inner_size(&self) -> Option<LogicalSize> {
+    pub fn get_inner_size(&self) -> LogicalSize {
         match self {
             //&Window::X(ref w) => w.get_inner_size(),
             &Window::Wayland(ref w) => w.get_inner_size(),
@@ -209,7 +209,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn get_outer_size(&self) -> Option<LogicalSize> {
+    pub fn get_outer_size(&self) -> LogicalSize {
         match self {
             //&Window::X(ref w) => w.get_outer_size(),
             &Window::Wayland(ref w) => w.get_outer_size(),
@@ -257,7 +257,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_cursor_grab(&self, grab: bool) -> Result<(), String> {
+    pub fn set_cursor_grab(&self, grab: bool) {
         match self {
             //&Window::X(ref window) => window.set_cursor_grab(grab),
             &Window::Wayland(ref window) => window.set_cursor_grab(grab),
@@ -281,7 +281,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_cursor_position(&self, position: LogicalPosition) -> Result<(), String> {
+    pub fn set_cursor_position(&self, position: LogicalPosition) {
         match self {
             //&Window::X(ref w) => w.set_cursor_position(position),
             &Window::Wayland(ref w) => w.set_cursor_position(position),
@@ -313,7 +313,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_always_on_top(&self, always_on_top: bool) {
+    pub fn set_always_on_top(&self, always_on_top: bool) -> Result<(), NotSupportedError> {
         match self {
             //&Window::X(ref w) => w.set_always_on_top(always_on_top),
             &Window::Wayland(_) => (),
@@ -321,7 +321,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_window_icon(&self, window_icon: Option<Icon>) {
+    pub fn set_window_icon(&self, window_icon: Option<Icon>) -> Result<(), NotSupportedError> {
         match self {
             //&Window::X(ref w) => w.set_window_icon(window_icon),
             &Window::Wayland(_) => (),

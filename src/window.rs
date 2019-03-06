@@ -1,6 +1,5 @@
 //! The `Window` struct and associated types.
 use std::{fmt, error};
-use std::io;
 
 use platform_impl;
 use event_loop::EventLoopWindowTarget;
@@ -51,6 +50,15 @@ pub struct WindowId(pub(crate) platform_impl::WindowId);
 
 #[derive(Debug, Clone)]
 pub struct NotSupportedError(());
+
+impl NotSupportedError {
+    /// Some platforms support everything, so if we don't allow `dead_code` this will send a warning
+    /// on those platforms.
+    #[allow(dead_code)]
+    pub(crate) fn new() -> NotSupportedError {
+        NotSupportedError(())
+    }
+}
 
 impl WindowId {
     /// Returns a dummy `WindowId`, useful for unit testing. The only guarantee made about the return
@@ -472,13 +480,13 @@ impl Window {
     /// Modifies the mouse cursor of the window.
     /// Has no effect on Android.
     #[inline]
-    pub fn set_cursor_icon(&self, cursor: CursorIcon) {
-        self.window.set_cursor_icon(cursor);
+    pub fn set_cursor_icon(&self, cursor: CursorIcon) -> Result<(), NotSupportedError> {
+        self.window.set_cursor_icon(cursor)
     }
 
     /// Changes the position of the cursor in window coordinates.
     #[inline]
-    pub fn set_cursor_position(&self, position: LogicalPosition) -> Result<(), io::Error> {
+    pub fn set_cursor_position(&self, position: LogicalPosition) -> Result<(), NotSupportedError> {
         self.window.set_cursor_position(position)
     }
 
@@ -488,9 +496,11 @@ impl Window {
     ///
     /// On macOS, this presently merely locks the cursor in a fixed location, which looks visually awkward.
     ///
+    /// TODO: MACOS BEHAVIOR BEFORE 1.0 RELEASE
+    ///
     /// This has no effect on Android or iOS.
     #[inline]
-    pub fn set_cursor_grab(&self, grab: bool) -> Result<(), io::Error> {
+    pub fn set_cursor_grab(&self, grab: bool) -> Result<(), NotSupportedError> {
         self.window.set_cursor_grab(grab)
     }
 
@@ -504,9 +514,11 @@ impl Window {
     /// On macOS, the cursor is hidden as long as the window has input focus, even if the cursor is outside of the
     /// window.
     ///
+    /// TODO: MAKE THIS CONSISTENT ACROSS DESKTOP PLATFORMS.
+    ///
     /// This has no effect on Android or iOS.
     #[inline]
-    pub fn set_cursor_visible(&self, hide: bool) {
+    pub fn set_cursor_visible(&self, hide: bool) -> Result<(), NotSupportedError> {
         self.window.set_cursor_visible(hide)
     }
 
@@ -530,7 +542,7 @@ impl Window {
 
     /// Change whether or not the window will always be on top of other windows.
     #[inline]
-    pub fn set_always_on_top(&self, always_on_top: bool) {
+    pub fn set_always_on_top(&self, always_on_top: bool) -> Result<(), NotSupportedError> {
         self.window.set_always_on_top(always_on_top)
     }
 
@@ -543,7 +555,7 @@ impl Window {
     ///
     /// This only has an effect on Windows and X11.
     #[inline]
-    pub fn set_window_icon(&self, window_icon: Option<Icon>) {
+    pub fn set_window_icon(&self, window_icon: Option<Icon>) -> Result<(), NotSupportedError> {
         self.window.set_window_icon(window_icon)
     }
 

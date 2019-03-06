@@ -29,8 +29,12 @@ fn main() {
                     use winit::event::VirtualKeyCode::*;
                     match key {
                         Escape => *control_flow = ControlFlow::Exit,
-                        G => window.grab_cursor(!modifiers.shift).unwrap(),
-                        H => window.hide_cursor(!modifiers.shift),
+                        G => window.set_cursor_grab(!modifiers.shift).unwrap(),
+                        P => {
+                            let inner_size = window.get_inner_size();
+                            window.set_cursor_position((inner_size.width / 2.0, inner_size.height / 2.0).into()).unwrap();
+                        } ,
+                        H => window.set_cursor_visible(modifiers.shift),
                         _ => (),
                     }
                 }
