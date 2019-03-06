@@ -1,39 +1,34 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, Weak};
 
-use {CreationError, CursorIcon, WindowAttributes};
 use dpi::{LogicalPosition, LogicalSize};
-<<<<<<< HEAD:src/platform_impl/linux/wayland/window.rs
-use platform_impl::MonitorHandle as PlatformMonitorHandle;
-use window::MonitorHandle as RootMonitorHandle;
-=======
-use platform::{MonitorId as PlatformMonitorId, PlatformSpecificWindowBuilderAttributes as PlAttributes};
-use window::MonitorId as RootMonitorId;
->>>>>>> master:src/platform/linux/wayland/window.rs
+use platform_impl::{MonitorHandle as PlatformMonitorHandle, PlatformSpecificWindowBuilderAttributes as PlAttributes};
+use monitor::MonitorHandle as RootMonitorHandle;
+use window::{CreationError, WindowAttributes, MouseCursor};
 
 use sctk::surface::{get_dpi_factor, get_outputs};
 use sctk::window::{ConceptFrame, Event as WEvent, Window as SWindow, Theme};
-use sctk::reexports::client::{Display, Proxy};
+use sctk::reexports::client::Display;
 use sctk::reexports::client::protocol::{wl_seat, wl_surface};
-use sctk::reexports::client::protocol::wl_surface::RequestsTrait as SurfaceRequests;
 use sctk::output::OutputMgr;
 
-use super::{make_wid, EventLoop, MonitorHandle, WindowId};
+use super::{make_wid, EventLoopWindowTarget, MonitorHandle, WindowId};
 use platform_impl::platform::wayland::event_loop::{get_available_monitors, get_primary_monitor};
 
 pub struct Window {
-    surface: Proxy<wl_surface::WlSurface>,
+    surface: wl_surface::WlSurface,
     frame: Arc<Mutex<SWindow<ConceptFrame>>>,
     outputs: OutputMgr, // Access to info for all monitors
     size: Arc<Mutex<(u32, u32)>>,
     kill_switch: (Arc<Mutex<bool>>, Arc<Mutex<bool>>),
     display: Arc<Display>,
     need_frame_refresh: Arc<Mutex<bool>>,
+    need_refresh: Arc<Mutex<bool>>
 }
 
 impl Window {
-    pub fn new(evlp: &EventLoop, attributes: WindowAttributes, pl_attribs: PlAttributes) -> Result<Window, CreationError> {
-        let (width, height) = attributes.inner_size.map(Into::into).unwrap_or((800, 600));
+    pub fn new<T>(evlp: &EventLoopWindowTarget<T>, attributes: WindowAttributes, pl_attribs: PlAttributes) -> Result<Window, CreationError> {
+        let (width, height) = attributes.dimensions.map(Into::into).unwrap_or((800, 600));
         // Create the window
         let size = Arc::new(Mutex::new((width, height)));
 
@@ -53,9 +48,9 @@ impl Window {
                 WEvent::Configure { new_size, .. } => {
                     let mut store = window_store.lock().unwrap();
                     for window in &mut store.windows {
-                        if window.surface.equals(&my_surface) {
+                        if window.surface.as_ref().equals(&my_surface.as_ref()) {
                             window.newsize = new_size;
-                            window.need_refresh = true;
+                            *(window.need_refresh.lock().unwrap()) = true;
                             *(window.need_frame_refresh.lock().unwrap()) = true;
                             return;
                         }
@@ -64,7 +59,7 @@ impl Window {
                 WEvent::Refresh => {
                     let store = window_store.lock().unwrap();
                     for window in &store.windows {
-                        if window.surface.equals(&my_surface) {
+                        if window.surface.as_ref().equals(&my_surface.as_ref()) {
                             *(window.need_frame_refresh.lock().unwrap()) = true;
                             return;
                         }
@@ -73,7 +68,7 @@ impl Window {
                 WEvent::Close => {
                     let mut store = window_store.lock().unwrap();
                     for window in &mut store.windows {
-                        if window.surface.equals(&my_surface) {
+                        if window.surface.as_ref().equals(&my_surface.as_ref()) {
                             window.closed = true;
                             return;
                         }
@@ -105,19 +100,23 @@ impl Window {
         // set decorations
         frame.set_decorate(attributes.decorations);
 
+        // set title
+        frame.set_title(attributes.title);
+
         // min-max dimensions
-        frame.set_min_size(attributes.min_inner_size.map(Into::into));
-        frame.set_max_size(attributes.max_inner_size.map(Into::into));
+        frame.set_min_size(attributes.min_dimensions.map(Into::into));
+        frame.set_max_size(attributes.max_dimensions.map(Into::into));
 
         let kill_switch = Arc::new(Mutex::new(false));
         let need_frame_refresh = Arc::new(Mutex::new(true));
         let frame = Arc::new(Mutex::new(frame));
+        let need_refresh = Arc::new(Mutex::new(true));
 
         evlp.store.lock().unwrap().windows.push(InternalWindow {
             closed: false,
             newsize: None,
             size: size.clone(),
-            need_refresh: false,
+            need_refresh: need_refresh.clone(),
             need_frame_refresh: need_frame_refresh.clone(),
             surface: surface.clone(),
             kill_switch: kill_switch.clone(),
@@ -134,7 +133,8 @@ impl Window {
             outputs: evlp.env.outputs.clone(),
             size: size,
             kill_switch: (kill_switch, evlp.cleanup_needed.clone()),
-            need_frame_refresh: need_frame_refresh,
+            need_frame_refresh,
+            need_refresh,
         })
     }
 
@@ -158,7 +158,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn get_outer_position(&self) -> Option<LogicalPosition> {
+    pub fn get_position(&self) -> Option<LogicalPosition> {
         // Not possible with wayland
         None
     }
@@ -170,12 +170,16 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_outer_position(&self, _pos: LogicalPosition) {
+    pub fn set_position(&self, _pos: LogicalPosition) {
         // Not possible with wayland
     }
 
     pub fn get_inner_size(&self) -> Option<LogicalSize> {
         Some(self.size.lock().unwrap().clone().into())
+    }
+
+    pub fn request_redraw(&self) {
+        *self.need_refresh.lock().unwrap() = true;
     }
 
     #[inline]
@@ -194,12 +198,12 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_min_inner_size(&self, dimensions: Option<LogicalSize>) {
+    pub fn set_min_dimensions(&self, dimensions: Option<LogicalSize>) {
         self.frame.lock().unwrap().set_min_size(dimensions.map(Into::into));
     }
 
     #[inline]
-    pub fn set_max_inner_size(&self, dimensions: Option<LogicalSize>) {
+    pub fn set_max_dimensions(&self, dimensions: Option<LogicalSize>) {
         self.frame.lock().unwrap().set_max_size(dimensions.map(Into::into));
     }
 
@@ -246,17 +250,17 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_cursor_icon(&self, _cursor: CursorIcon) {
+    pub fn set_cursor(&self, _cursor: MouseCursor) {
         // TODO
     }
 
     #[inline]
-    pub fn set_cursor_visible(&self, visible: bool) {
+    pub fn hide_cursor(&self, _hide: bool) {
         // TODO: This isn't possible on Wayland yet
     }
 
     #[inline]
-    pub fn set_cursor_grab(&self, _grab: bool) -> Result<(), String> {
+    pub fn grab_cursor(&self, _grab: bool) -> Result<(), String> {
         Err("Cursor grabbing is not yet possible on Wayland.".to_owned())
     }
 
@@ -269,24 +273,16 @@ impl Window {
         &*self.display
     }
 
-    pub fn get_surface(&self) -> &Proxy<wl_surface::WlSurface> {
+    pub fn get_surface(&self) -> &wl_surface::WlSurface {
         &self.surface
     }
 
-<<<<<<< HEAD:src/platform_impl/linux/wayland/window.rs
     pub fn get_current_monitor(&self) -> MonitorHandle {
-        // we don't know how much each monitor sees us so...
-        // just return the most recent one ?
-        let guard = self.monitors.lock().unwrap();
-        guard.monitors.last().unwrap().clone()
-=======
-    pub fn get_current_monitor(&self) -> MonitorId {
         let output = get_outputs(&self.surface).last().unwrap().clone();
-        MonitorId {
+        MonitorHandle {
             proxy: output,
             mgr: self.outputs.clone(),
         }
->>>>>>> master:src/platform/linux/wayland/window.rs
     }
 
     pub fn get_available_monitors(&self) -> VecDeque<MonitorHandle> {
@@ -310,10 +306,10 @@ impl Drop for Window {
  */
 
 struct InternalWindow {
-    surface: Proxy<wl_surface::WlSurface>,
+    surface: wl_surface::WlSurface,
     newsize: Option<(u32, u32)>,
     size: Arc<Mutex<(u32, u32)>>,
-    need_refresh: bool,
+    need_refresh: Arc<Mutex<bool>>,
     need_frame_refresh: Arc<Mutex<bool>>,
     closed: bool,
     kill_switch: Arc<Mutex<bool>>,
@@ -333,9 +329,9 @@ impl WindowStore {
         }
     }
 
-    pub fn find_wid(&self, surface: &Proxy<wl_surface::WlSurface>) -> Option<WindowId> {
+    pub fn find_wid(&self, surface: &wl_surface::WlSurface) -> Option<WindowId> {
         for window in &self.windows {
-            if surface.equals(&window.surface) {
+            if surface.as_ref().equals(&window.surface.as_ref()) {
                 return Some(make_wid(surface));
             }
         }
@@ -357,7 +353,7 @@ impl WindowStore {
         pruned
     }
 
-    pub fn new_seat(&self, seat: &Proxy<wl_seat::WlSeat>) {
+    pub fn new_seat(&self, seat: &wl_seat::WlSeat) {
         for window in &self.windows {
             if let Some(w) = window.frame.upgrade() {
                 w.lock().unwrap().new_seat(seat);
@@ -365,9 +361,9 @@ impl WindowStore {
         }
     }
 
-    fn dpi_change(&mut self, surface: &Proxy<wl_surface::WlSurface>, new: i32) {
+    fn dpi_change(&mut self, surface: &wl_surface::WlSurface, new: i32) {
         for window in &mut self.windows {
-            if surface.equals(&window.surface) {
+            if surface.as_ref().equals(&window.surface.as_ref()) {
                 window.new_dpi = Some(new);
             }
         }
@@ -384,7 +380,7 @@ impl WindowStore {
                 window.newsize.take(),
                 &mut *(window.size.lock().unwrap()),
                 window.new_dpi,
-                window.need_refresh,
+                ::std::mem::replace(&mut *window.need_refresh.lock().unwrap(), false),
                 ::std::mem::replace(&mut *window.need_frame_refresh.lock().unwrap(), false),
                 window.closed,
                 make_wid(&window.surface),
@@ -393,59 +389,9 @@ impl WindowStore {
             if let Some(dpi) = window.new_dpi.take() {
                 window.current_dpi = dpi;
             }
-            window.need_refresh = false;
             // avoid re-spamming the event
             window.closed = false;
         }
     }
 }
-<<<<<<< HEAD:src/platform_impl/linux/wayland/window.rs
 
-/*
- * Monitor list with some covenience method to compute DPI
- */
-
-struct MonitorList {
-    monitors: Vec<MonitorHandle>
-}
-
-impl MonitorList {
-    fn new() -> MonitorList {
-        MonitorList {
-            monitors: Vec::new()
-        }
-    }
-
-    fn compute_hidpi_factor(&self) -> i32 {
-        let mut factor = 1;
-        for monitor_id in &self.monitors {
-            let monitor_dpi = monitor_id.get_hidpi_factor();
-            if monitor_dpi > factor { factor = monitor_dpi; }
-        }
-        factor
-    }
-
-    fn add_output(&mut self, monitor: MonitorHandle) -> Option<i32> {
-        let old_dpi = self.compute_hidpi_factor();
-        let monitor_dpi = monitor.get_hidpi_factor();
-        self.monitors.push(monitor);
-        if monitor_dpi > old_dpi {
-            Some(monitor_dpi)
-        } else {
-            None
-        }
-    }
-
-    fn del_output(&mut self, output: &Proxy<wl_output::WlOutput>) -> Option<i32> {
-        let old_dpi = self.compute_hidpi_factor();
-        self.monitors.retain(|m| !m.proxy.equals(output));
-        let new_dpi = self.compute_hidpi_factor();
-        if new_dpi != old_dpi {
-            Some(new_dpi)
-        } else {
-            None
-        }
-    }
-}
-=======
->>>>>>> master:src/platform/linux/wayland/window.rs

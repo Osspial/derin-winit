@@ -256,7 +256,6 @@ impl Window {
 
     pub(crate) fn set_min_dimensions_physical(&self, dimensions: Option<(u32, u32)>) {
         self.window_state.lock().min_size = dimensions.map(Into::into);
-
         // Make windows re-check the window size bounds.
         let (width, height) = self.get_inner_size_physical();
         self.set_inner_size_physical(width, height);
@@ -273,7 +272,6 @@ impl Window {
 
     pub fn set_max_dimensions_physical(&self, dimensions: Option<(u32, u32)>) {
         self.window_state.lock().max_size = dimensions.map(Into::into);
-
         // Make windows re-check the window size bounds.
         let (width, height) = self.get_inner_size_physical();
         self.set_inner_size_physical(width, height);
