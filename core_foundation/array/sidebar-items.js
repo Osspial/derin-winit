@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["CFArray","A heterogeneous immutable array."],["CFArrayIterator",""]]});
