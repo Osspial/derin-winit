@@ -1,5 +1,6 @@
 //! The `Window` struct and associated types.
 use std::{fmt, error};
+use std::io;
 
 use platform_impl;
 use event_loop::EventLoopWindowTarget;
@@ -47,6 +48,9 @@ impl fmt::Debug for Window {
 /// can then compare to the ids of your windows.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WindowId(pub(crate) platform_impl::WindowId);
+
+#[derive(Debug, Clone)]
+pub struct NotSupportedError(());
 
 impl WindowId {
     /// Returns a dummy `WindowId`, useful for unit testing. The only guarantee made about the return
@@ -171,6 +175,7 @@ impl Default for WindowAttributes {
         }
     }
 }
+
 impl WindowBuilder {
     /// Initializes a new `WindowBuilder` with default values.
     #[inline]
@@ -371,10 +376,8 @@ impl Window {
     ///
     /// The coordinates can be negative if the top-left hand corner of the window is outside
     ///  of the visible screen region.
-    ///
-    /// Returns `None` if the window no longer exists.
     #[inline]
-    pub fn get_outer_position(&self) -> Option<LogicalPosition> {
+    pub fn get_outer_position(&self) -> Result<LogicalPosition, NotSupportedError> {
         self.window.get_outer_position()
     }
 
@@ -383,17 +386,15 @@ impl Window {
     ///
     /// The same conditions that apply to `get_outer_position` apply to this method.
     #[inline]
-    pub fn get_inner_position(&self) -> Option<LogicalPosition> {
+    pub fn get_inner_position(&self) -> Result<LogicalPosition, NotSupportedError> {
         self.window.get_inner_position()
     }
 
     /// Modifies the position of the window.
     ///
     /// See `get_outer_position` for more information about the coordinates.
-    ///
-    /// This is a no-op if the window has already been closed.
     #[inline]
-    pub fn set_outer_position(&self, position: LogicalPosition) {
+    pub fn set_outer_position(&self, position: LogicalPosition) -> Result<(), NotSupportedError> {
         self.window.set_outer_position(position)
     }
 
@@ -402,10 +403,8 @@ impl Window {
     /// The client area is the content of the window, excluding the title bar and borders.
     ///
     /// Converting the returned `LogicalSize` to `PhysicalSize` produces the size your framebuffer should be.
-    ///
-    /// Returns `None` if the window no longer exists.
     #[inline]
-    pub fn get_inner_size(&self) -> Option<LogicalSize> {
+    pub fn get_inner_size(&self) -> LogicalSize {
         self.window.get_inner_size()
     }
 
@@ -413,18 +412,14 @@ impl Window {
     ///
     /// These dimensions include the title bar and borders. If you don't want that (and you usually don't),
     /// use `get_inner_size` instead.
-    ///
-    /// Returns `None` if the window no longer exists.
     #[inline]
-    pub fn get_outer_size(&self) -> Option<LogicalSize> {
+    pub fn get_outer_size(&self) -> LogicalSize {
         self.window.get_outer_size()
     }
 
     /// Modifies the inner size of the window.
     ///
     /// See `get_inner_size` for more information about the values.
-    ///
-    /// This is a no-op if the window has already been closed.
     #[inline]
     pub fn set_inner_size(&self, size: LogicalSize) {
         self.window.set_inner_size(size)
@@ -483,7 +478,7 @@ impl Window {
 
     /// Changes the position of the cursor in window coordinates.
     #[inline]
-    pub fn set_cursor_position(&self, position: LogicalPosition) -> Result<(), String> {
+    pub fn set_cursor_position(&self, position: LogicalPosition) -> Result<(), io::Error> {
         self.window.set_cursor_position(position)
     }
 
@@ -495,7 +490,7 @@ impl Window {
     ///
     /// This has no effect on Android or iOS.
     #[inline]
-    pub fn set_cursor_grab(&self, grab: bool) -> Result<(), String> {
+    pub fn set_cursor_grab(&self, grab: bool) -> Result<(), io::Error> {
         self.window.set_cursor_grab(grab)
     }
 

@@ -18,7 +18,7 @@ use winapi::um::wingdi::{CreateRectRgn, DeleteObject};
 use winapi::um::oleidl::LPDROPTARGET;
 use winapi::um::winnt::{LONG, LPCWSTR};
 
-use window::{CreationError, Icon, CursorIcon, WindowAttributes};
+use window::{CreationError, CursorIcon, Icon, NotSupportedError, WindowAttributes};
 use dpi::{LogicalPosition, LogicalSize, PhysicalSize};
 use monitor::MonitorHandle as RootMonitorHandle;
 use platform_impl::platform::{
@@ -132,35 +132,32 @@ impl Window {
         }
     }
 
-    pub(crate) fn get_outer_position_physical(&self) -> Option<(i32, i32)> {
+    pub(crate) fn get_outer_position_physical(&self) -> (i32, i32) {
         util::get_window_rect(self.window.0)
             .map(|rect| (rect.left as i32, rect.top as i32))
+            .expect("Window unexpectedly closed")
     }
 
     #[inline]
-    pub fn get_outer_position(&self) -> Option<LogicalPosition> {
-        self.get_outer_position_physical()
-            .map(|physical_position| {
-                let dpi_factor = self.get_hidpi_factor();
-                LogicalPosition::from_physical(physical_position, dpi_factor)
-            })
+    pub fn get_outer_position(&self) -> Result<LogicalPosition, NotSupportedError> {
+        let physical_position = self.get_outer_position_physical();
+        let dpi_factor = self.get_hidpi_factor();
+        Ok(LogicalPosition::from_physical(physical_position, dpi_factor))
     }
 
-    pub(crate) fn get_inner_position_physical(&self) -> Option<(i32, i32)> {
+    pub(crate) fn get_inner_position_physical(&self) -> (i32, i32) {
         let mut position: POINT = unsafe { mem::zeroed() };
         if unsafe { winuser::ClientToScreen(self.window.0, &mut position) } == 0 {
-            return None;
+            panic!("Window unexpectedly closed");
         }
-        Some((position.x, position.y))
+        (position.x, position.y)
     }
 
     #[inline]
-    pub fn get_inner_position(&self) -> Option<LogicalPosition> {
-        self.get_inner_position_physical()
-            .map(|physical_position| {
-                let dpi_factor = self.get_hidpi_factor();
-                LogicalPosition::from_physical(physical_position, dpi_factor)
-            })
+    pub fn get_inner_position(&self) -> Result<LogicalPosition, NotSupportedError> {
+        let physical_position = self.get_inner_position_physical();
+        let dpi_factor = self.get_hidpi_factor();
+        Ok(LogicalPosition::from_physical(physical_position, dpi_factor))
     }
 
     pub(crate) fn set_outer_position_physical(&self, x: i32, y: i32) {
@@ -179,47 +176,45 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_outer_position(&self, logical_position: LogicalPosition) {
+    pub fn set_outer_position(&self, logical_position: LogicalPosition) -> Result<(), NotSupportedError> {
         let dpi_factor = self.get_hidpi_factor();
         let (x, y) = logical_position.to_physical(dpi_factor).into();
         self.set_outer_position_physical(x, y);
+        Ok(())
     }
 
-    pub(crate) fn get_inner_size_physical(&self) -> Option<(u32, u32)> {
+    pub(crate) fn get_inner_size_physical(&self) -> (u32, u32) {
         let mut rect: RECT = unsafe { mem::uninitialized() };
         if unsafe { winuser::GetClientRect(self.window.0, &mut rect) } == 0 {
-            return None;
+            panic!("Window unexpectedly closed");
         }
-        Some((
+        (
             (rect.right - rect.left) as u32,
             (rect.bottom - rect.top) as u32,
-        ))
+        )
     }
 
     #[inline]
-    pub fn get_inner_size(&self) -> Option<LogicalSize> {
-        self.get_inner_size_physical()
-            .map(|physical_size| {
-                let dpi_factor = self.get_hidpi_factor();
-                LogicalSize::from_physical(physical_size, dpi_factor)
-            })
+    pub fn get_inner_size(&self) -> LogicalSize {
+        let physical_size = self.get_inner_size_physical();
+        let dpi_factor = self.get_hidpi_factor();
+        LogicalSize::from_physical(physical_size, dpi_factor)
     }
 
-    pub(crate) fn get_outer_size_physical(&self) -> Option<(u32, u32)> {
+    pub(crate) fn get_outer_size_physical(&self) -> (u32, u32) {
         util::get_window_rect(self.window.0)
             .map(|rect| (
                 (rect.right - rect.left) as u32,
                 (rect.bottom - rect.top) as u32,
             ))
+            .expect("Window unexpectedly closed")
     }
 
     #[inline]
-    pub fn get_outer_size(&self) -> Option<LogicalSize> {
-        self.get_outer_size_physical()
-            .map(|physical_size| {
-                let dpi_factor = self.get_hidpi_factor();
-                LogicalSize::from_physical(physical_size, dpi_factor)
-            })
+    pub fn get_outer_size(&self) -> LogicalSize {
+        let physical_size = self.get_outer_size_physical();
+        let dpi_factor = self.get_hidpi_factor();
+        LogicalSize::from_physical(physical_size, dpi_factor)
     }
 
     pub(crate) fn set_inner_size_physical(&self, x: u32, y: u32) {
@@ -261,9 +256,10 @@ impl Window {
 
     pub(crate) fn set_min_dimensions_physical(&self, dimensions: Option<(u32, u32)>) {
         self.window_state.lock().min_size = dimensions.map(Into::into);
+
         // Make windows re-check the window size bounds.
-        self.get_inner_size_physical()
-            .map(|(width, height)| self.set_inner_size_physical(width, height));
+        let (width, height) = self.get_inner_size_physical();
+        self.set_inner_size_physical(width, height);
     }
 
     #[inline]
@@ -277,9 +273,10 @@ impl Window {
 
     pub fn set_max_dimensions_physical(&self, dimensions: Option<(u32, u32)>) {
         self.window_state.lock().max_size = dimensions.map(Into::into);
+
         // Make windows re-check the window size bounds.
-        self.get_inner_size_physical()
-            .map(|(width, height)| self.set_inner_size_physical(width, height));
+        let (width, height) = self.get_inner_size_physical();
+        self.set_inner_size_physical(width, height);
     }
 
     #[inline]
@@ -325,15 +322,14 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_cursor_grab(&self, grab: bool) -> Result<(), String> {
+    pub fn set_cursor_grab(&self, grab: bool) -> Result<(), io::Error> {
         let window = self.window.clone();
         let window_state = Arc::clone(&self.window_state);
         let (tx, rx) = channel();
 
         self.thread_executor.execute_in_thread(move || {
             let result = window_state.lock().mouse
-                .set_cursor_flags(window.0, |f| f.set(CursorFlags::GRABBED, grab))
-                .map_err(|e| e.to_string());
+                .set_cursor_flags(window.0, |f| f.set(CursorFlags::GRABBED, grab));
             let _ = tx.send(result);
         });
         rx.recv().unwrap()
@@ -359,21 +355,21 @@ impl Window {
         self.window_state.lock().dpi_factor
     }
 
-    fn set_cursor_position_physical(&self, x: i32, y: i32) -> Result<(), String> {
+    fn set_cursor_position_physical(&self, x: i32, y: i32) -> Result<(), io::Error> {
         let mut point = POINT { x, y };
         unsafe {
             if winuser::ClientToScreen(self.window.0, &mut point) == 0 {
-                return Err("`ClientToScreen` failed".to_owned());
+                return Err(io::Error::last_os_error());
             }
             if winuser::SetCursorPos(point.x, point.y) == 0 {
-                return Err("`SetCursorPos` failed".to_owned());
+                return Err(io::Error::last_os_error());
             }
         }
         Ok(())
     }
 
     #[inline]
-    pub fn set_cursor_position(&self, logical_position: LogicalPosition) -> Result<(), String> {
+    pub fn set_cursor_position(&self, logical_position: LogicalPosition) -> Result<(), io::Error> {
         let dpi_factor = self.get_hidpi_factor();
         let (x, y) = logical_position.to_physical(dpi_factor).into();
         self.set_cursor_position_physical(x, y)
