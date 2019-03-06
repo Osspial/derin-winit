@@ -74,7 +74,7 @@ use {
     Event,
     LogicalPosition,
     LogicalSize,
-    MouseCursor,
+    CursorIcon,
     PhysicalPosition,
     PhysicalSize,
     WindowAttributes,
@@ -160,7 +160,7 @@ impl fmt::Debug for MonitorHandle {
         let monitor_id_proxy = MonitorHandle {
             name: self.get_name(),
             dimensions: self.get_dimensions(),
-            position: self.get_position(),
+            position: self.get_outer_position(),
             hidpi_factor: self.get_hidpi_factor(),
         };
 
@@ -396,7 +396,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn get_position(&self) -> Option<LogicalPosition> {
+    pub fn get_outer_position(&self) -> Option<LogicalPosition> {
         // N/A
         None
     }
@@ -408,7 +408,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_position(&self, _position: LogicalPosition) {
+    pub fn set_outer_position(&self, _position: LogicalPosition) {
         // N/A
     }
 
@@ -428,12 +428,12 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_min_dimensions(&self, _dimensions: Option<LogicalSize>) {
+    pub fn set_min_inner_size(&self, _dimensions: Option<LogicalSize>) {
         // N/A
     }
 
     #[inline]
-    pub fn set_max_dimensions(&self, _dimensions: Option<LogicalSize>) {
+    pub fn set_max_inner_size(&self, _dimensions: Option<LogicalSize>) {
         // N/A
     }
 
@@ -443,12 +443,12 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_cursor(&self, _cursor: MouseCursor) {
+    pub fn set_cursor_icon(&self, _cursor: CursorIcon) {
         // N/A
     }
 
     #[inline]
-    pub fn grab_cursor(&self, _grab: bool) -> Result<(), String> {
+    pub fn set_cursor_grab(&self, _grab: bool) -> Result<(), String> {
         Err("Cursor grabbing is not possible on iOS.".to_owned())
     }
 

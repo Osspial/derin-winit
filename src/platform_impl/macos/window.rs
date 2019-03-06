@@ -35,7 +35,7 @@ use {
     Event,
     LogicalPosition,
     LogicalSize,
-    MouseCursor,
+    CursorIcon,
     WindowAttributes,
     WindowEvent,
     WindowId,
@@ -548,7 +548,7 @@ pub struct Window2 {
     pub delegate: WindowDelegate,
     pub input_context: IdRef,
     cursor: Weak<Mutex<util::Cursor>>,
-    cursor_hidden: AtomicBool,
+    cursor_visible: AtomicBool,
 }
 
 unsafe impl Send for Window2 {}
@@ -733,10 +733,10 @@ impl Window2 {
 
             app.activateIgnoringOtherApps_(YES);
 
-            if let Some(dimensions) = win_attribs.min_dimensions {
+            if let Some(dimensions) = win_attribs.min_inner_size {
                 nswindow_set_min_dimensions(window.0, dimensions);
             }
-            if let Some(dimensions) = win_attribs.max_dimensions {
+            if let Some(dimensions) = win_attribs.max_inner_size {
                 nswindow_set_max_dimensions(window.0, dimensions);
             }
 
@@ -774,7 +774,7 @@ impl Window2 {
             delegate: WindowDelegate::new(delegate_state),
             input_context,
             cursor,
-            cursor_hidden: Default::default(),
+            cursor_visible: true,
         };
 
         // Set fullscreen mode after we setup everything
@@ -864,7 +864,7 @@ impl Window2 {
             let frame = match screen {
                 Some(screen) => appkit::NSScreen::frame(screen),
                 None => {
-                    let (width, height) = attrs.dimensions
+                    let (width, height) = attrs.inner_size
                         .map(|logical| (logical.width, logical.height))
                         .unwrap_or((800.0, 600.0));
                     NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(width, height))
@@ -991,7 +991,7 @@ impl Window2 {
         unsafe { NSWindow::orderOut_(*self.window, nil); }
     }
 
-    pub fn get_position(&self) -> Option<LogicalPosition> {
+    pub fn get_outer_position(&self) -> Option<LogicalPosition> {
         let frame_rect = unsafe { NSWindow::frame(*self.window) };
         Some((
             frame_rect.origin.x as f64,
@@ -1012,7 +1012,7 @@ impl Window2 {
         ).into())
     }
 
-    pub fn set_position(&self, position: LogicalPosition) {
+    pub fn set_outer_position(&self, position: LogicalPosition) {
         let dummy = NSRect::new(
             NSPoint::new(
                 position.x,
@@ -1046,14 +1046,14 @@ impl Window2 {
         }
     }
 
-    pub fn set_min_dimensions(&self, dimensions: Option<LogicalSize>) {
+    pub fn set_min_inner_size(&self, dimensions: Option<LogicalSize>) {
         unsafe {
             let dimensions = dimensions.unwrap_or_else(|| (0, 0).into());
             nswindow_set_min_dimensions(self.window.0, dimensions);
         }
     }
 
-    pub fn set_max_dimensions(&self, dimensions: Option<LogicalSize>) {
+    pub fn set_max_inner_size(&self, dimensions: Option<LogicalSize>) {
         unsafe {
             let dimensions = dimensions.unwrap_or_else(|| (!0, !0).into());
             nswindow_set_max_dimensions(self.window.0, dimensions);
@@ -1075,7 +1075,7 @@ impl Window2 {
         } // Otherwise, we don't change the mask until we exit fullscreen.
     }
 
-    pub fn set_cursor(&self, cursor: MouseCursor) {
+    pub fn set_cursor_icon(&self, cursor: CursorIcon) {
         let cursor = util::Cursor::from(cursor);
         if let Some(cursor_access) = self.cursor.upgrade() {
             *cursor_access.lock().unwrap() = cursor;
@@ -1088,24 +1088,24 @@ impl Window2 {
     }
 
     #[inline]
-    pub fn grab_cursor(&self, grab: bool) -> Result<(), String> {
+    pub fn set_cursor_grab(&self, grab: bool) -> Result<(), String> {
         // TODO: Do this for real https://stackoverflow.com/a/40922095/5435443
         CGDisplay::associate_mouse_and_mouse_cursor_position(!grab)
             .map_err(|status| format!("Failed to grab cursor: `CGError` {:?}", status))
     }
 
     #[inline]
-    pub fn hide_cursor(&self, hide: bool) {
+    pub fn set_cursor_visible(&self, visible: bool) {
         let cursor_class = class!(NSCursor);
         // macOS uses a "hide counter" like Windows does, so we avoid incrementing it more than once.
-        // (otherwise, `hide_cursor(false)` would need to be called n times!)
-        if hide != self.cursor_hidden.load(Ordering::Acquire) {
-            if hide {
-                let _: () = unsafe { msg_send![cursor_class, hide] };
-            } else {
+        // (otherwise, `set_cursor_visible(false)` would need to be called n times!)
+        if visible != self.cursor_visible.load(Ordering::Acquire) {
+            if visible {
                 let _: () = unsafe { msg_send![cursor_class, unhide] };
+            } else {
+                let _: () = unsafe { msg_send![cursor_class, hide] };
             }
-            self.cursor_hidden.store(hide, Ordering::Release);
+            self.cursor_visible.store(hide, Ordering::Release);
         }
     }
 

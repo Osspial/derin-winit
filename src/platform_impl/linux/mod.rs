@@ -13,7 +13,7 @@ use {
     CreationError,
     EventLoopClosed,
     Icon,
-    MouseCursor,
+    CursorIcon,
     ControlFlow,
     WindowAttributes,
 };
@@ -182,10 +182,10 @@ impl Window {
     }
 
     #[inline]
-    pub fn get_position(&self) -> Option<LogicalPosition> {
+    pub fn get_outer_position(&self) -> Option<LogicalPosition> {
         match self {
-            &Window::X(ref w) => w.get_position(),
-            &Window::Wayland(ref w) => w.get_position(),
+            &Window::X(ref w) => w.get_outer_position(),
+            &Window::Wayland(ref w) => w.get_outer_position(),
         }
     }
 
@@ -198,10 +198,10 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_position(&self, position: LogicalPosition) {
+    pub fn set_outer_position(&self, position: LogicalPosition) {
         match self {
-            &Window::X(ref w) => w.set_position(position),
-            &Window::Wayland(ref w) => w.set_position(position),
+            &Window::X(ref w) => w.set_outer_position(position),
+            &Window::Wayland(ref w) => w.set_outer_position(position),
         }
     }
 
@@ -230,18 +230,18 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_min_dimensions(&self, dimensions: Option<LogicalSize>) {
+    pub fn set_min_inner_size(&self, dimensions: Option<LogicalSize>) {
         match self {
-            &Window::X(ref w) => w.set_min_dimensions(dimensions),
-            &Window::Wayland(ref w) => w.set_min_dimensions(dimensions),
+            &Window::X(ref w) => w.set_min_inner_size(dimensions),
+            &Window::Wayland(ref w) => w.set_min_inner_size(dimensions),
         }
     }
 
     #[inline]
-    pub fn set_max_dimensions(&self, dimensions: Option<LogicalSize>) {
+    pub fn set_max_inner_size(&self, dimensions: Option<LogicalSize>) {
         match self {
-            &Window::X(ref w) => w.set_max_dimensions(dimensions),
-            &Window::Wayland(ref w) => w.set_max_dimensions(dimensions),
+            &Window::X(ref w) => w.set_max_inner_size(dimensions),
+            &Window::Wayland(ref w) => w.set_max_inner_size(dimensions),
         }
     }
 
@@ -254,26 +254,26 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_cursor(&self, cursor: MouseCursor) {
+    pub fn set_cursor_icon(&self, cursor: CursorIcon) {
         match self {
-            &Window::X(ref w) => w.set_cursor(cursor),
-            &Window::Wayland(ref w) => w.set_cursor(cursor)
+            &Window::X(ref w) => w.set_cursor_icon(cursor),
+            &Window::Wayland(ref w) => w.set_cursor_icon(cursor)
         }
     }
 
     #[inline]
-    pub fn grab_cursor(&self, grab: bool) -> Result<(), String> {
+    pub fn set_cursor_grab(&self, grab: bool) -> Result<(), String> {
         match self {
-            &Window::X(ref window) => window.grab_cursor(grab),
-            &Window::Wayland(ref window) => window.grab_cursor(grab),
+            &Window::X(ref window) => window.set_cursor_grab(grab),
+            &Window::Wayland(ref window) => window.set_cursor_grab(grab),
         }
     }
 
     #[inline]
-    pub fn hide_cursor(&self, hide: bool) {
+    pub fn set_cursor_visible(&self, visible: bool) {
         match self {
-            &Window::X(ref window) => window.hide_cursor(hide),
-            &Window::Wayland(ref window) => window.hide_cursor(hide),
+            &Window::X(ref window) => window.set_cursor_visible(visible),
+            &Window::Wayland(ref window) => window.set_cursor_visible(visible),
         }
     }
 

@@ -18,7 +18,7 @@ use winapi::um::wingdi::{CreateRectRgn, DeleteObject};
 use winapi::um::oleidl::LPDROPTARGET;
 use winapi::um::winnt::{LONG, LPCWSTR};
 
-use window::{CreationError, Icon, MouseCursor, WindowAttributes};
+use window::{CreationError, Icon, CursorIcon, WindowAttributes};
 use dpi::{LogicalPosition, LogicalSize, PhysicalSize};
 use monitor::MonitorHandle as RootMonitorHandle;
 use platform_impl::platform::{
@@ -132,14 +132,14 @@ impl Window {
         }
     }
 
-    pub(crate) fn get_position_physical(&self) -> Option<(i32, i32)> {
+    pub(crate) fn get_outer_position_physical(&self) -> Option<(i32, i32)> {
         util::get_window_rect(self.window.0)
             .map(|rect| (rect.left as i32, rect.top as i32))
     }
 
     #[inline]
-    pub fn get_position(&self) -> Option<LogicalPosition> {
-        self.get_position_physical()
+    pub fn get_outer_position(&self) -> Option<LogicalPosition> {
+        self.get_outer_position_physical()
             .map(|physical_position| {
                 let dpi_factor = self.get_hidpi_factor();
                 LogicalPosition::from_physical(physical_position, dpi_factor)
@@ -163,7 +163,7 @@ impl Window {
             })
     }
 
-    pub(crate) fn set_position_physical(&self, x: i32, y: i32) {
+    pub(crate) fn set_outer_position_physical(&self, x: i32, y: i32) {
         unsafe {
             winuser::SetWindowPos(
                 self.window.0,
@@ -179,10 +179,10 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_position(&self, logical_position: LogicalPosition) {
+    pub fn set_outer_position(&self, logical_position: LogicalPosition) {
         let dpi_factor = self.get_hidpi_factor();
         let (x, y) = logical_position.to_physical(dpi_factor).into();
-        self.set_position_physical(x, y);
+        self.set_outer_position_physical(x, y);
     }
 
     pub(crate) fn get_inner_size_physical(&self) -> Option<(u32, u32)> {
@@ -267,7 +267,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_min_dimensions(&self, logical_size: Option<LogicalSize>) {
+    pub fn set_min_inner_size(&self, logical_size: Option<LogicalSize>) {
         let physical_size = logical_size.map(|logical_size| {
             let dpi_factor = self.get_hidpi_factor();
             logical_size.to_physical(dpi_factor).into()
@@ -283,7 +283,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_max_dimensions(&self, logical_size: Option<LogicalSize>) {
+    pub fn set_max_inner_size(&self, logical_size: Option<LogicalSize>) {
         let physical_size = logical_size.map(|logical_size| {
             let dpi_factor = self.get_hidpi_factor();
             logical_size.to_physical(dpi_factor).into()
@@ -313,7 +313,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_cursor(&self, cursor: MouseCursor) {
+    pub fn set_cursor_icon(&self, cursor: CursorIcon) {
         self.window_state.lock().mouse.cursor = cursor;
         self.thread_executor.execute_in_thread(move || unsafe {
             let cursor = winuser::LoadCursorW(
@@ -325,7 +325,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn grab_cursor(&self, grab: bool) -> Result<(), String> {
+    pub fn set_cursor_grab(&self, grab: bool) -> Result<(), String> {
         let window = self.window.clone();
         let window_state = Arc::clone(&self.window_state);
         let (tx, rx) = channel();
@@ -340,14 +340,14 @@ impl Window {
     }
 
     #[inline]
-    pub fn hide_cursor(&self, hide: bool) {
+    pub fn set_cursor_visible(&self, visible: bool) {
         let window = self.window.clone();
         let window_state = Arc::clone(&self.window_state);
         let (tx, rx) = channel();
 
         self.thread_executor.execute_in_thread(move || {
             let result = window_state.lock().mouse
-                .set_cursor_flags(window.0, |f| f.set(CursorFlags::HIDDEN, hide))
+                .set_cursor_flags(window.0, |f| f.set(CursorFlags::HIDDEN, !visible))
                 .map_err(|e| e.to_string());
             let _ = tx.send(result);
         });
@@ -635,7 +635,7 @@ unsafe fn init<T: 'static>(
     };
     info!("Guessed window DPI factor: {}", guessed_dpi_factor);
 
-    let dimensions = attributes.dimensions.unwrap_or_else(|| (1024, 768).into());
+    let dimensions = attributes.inner_size.unwrap_or_else(|| (1024, 768).into());
 
     let mut window_flags = WindowFlags::empty();
     window_flags.set(WindowFlags::DECORATIONS, attributes.decorations);
@@ -760,7 +760,7 @@ unsafe fn init<T: 'static>(
         force_window_active(win.window.0);
     }
 
-    if let Some(dimensions) = attributes.dimensions {
+    if let Some(dimensions) = attributes.inner_size {
         win.set_inner_size(dimensions);
     }
 

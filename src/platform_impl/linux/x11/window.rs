@@ -7,7 +7,7 @@ use std::sync::Arc;
 use libc;
 use parking_lot::Mutex;
 
-use {Icon, MouseCursor, WindowAttributes};
+use {Icon, CursorIcon, WindowAttributes};
 use CreationError::{self, OsError};
 use dpi::{LogicalPosition, LogicalSize};
 use platform_impl::MonitorHandle as PlatformMonitorHandle;
@@ -60,9 +60,9 @@ pub struct UnownedWindow {
     xwindow: ffi::Window, // never changes
     root: ffi::Window, // never changes
     screen_id: i32, // never changes
-    cursor: Mutex<MouseCursor>,
+    cursor: Mutex<CursorIcon>,
     cursor_grabbed: Mutex<bool>,
-    cursor_hidden: Mutex<bool>,
+    cursor_visible: Mutex<bool>,
     ime_sender: Mutex<ImeSender>,
     pub multitouch: bool, // never changes
     pub shared_state: Mutex<SharedState>,
@@ -107,17 +107,17 @@ impl UnownedWindow {
 
         info!("Guessed window DPI factor: {}", dpi_factor);
 
-        let max_dimensions: Option<(u32, u32)> = window_attrs.max_dimensions.map(|size| {
+        let max_dimensions: Option<(u32, u32)> = window_attrs.max_inner_size.map(|size| {
             size.to_physical(dpi_factor).into()
         });
-        let min_dimensions: Option<(u32, u32)> = window_attrs.min_dimensions.map(|size| {
+        let min_dimensions: Option<(u32, u32)> = window_attrs.min_inner_size.map(|size| {
             size.to_physical(dpi_factor).into()
         });
 
         let dimensions = {
             // x11 only applies constraints when the window is actively resized
             // by the user, so we have to manually apply the initial constraints
-            let mut dimensions: (u32, u32) = window_attrs.dimensions
+            let mut dimensions: (u32, u32) = window_attrs.inner_size
                 .or_else(|| Some((800, 600).into()))
                 .map(|size| size.to_physical(dpi_factor))
                 .map(Into::into)
@@ -199,7 +199,7 @@ impl UnownedWindow {
             screen_id,
             cursor: Default::default(),
             cursor_grabbed: Default::default(),
-            cursor_hidden: Default::default(),
+            cursor_visible: Default::default(),
             ime_sender: Mutex::new(event_loop.ime_sender.clone()),
             multitouch: window_attrs.multitouch,
             shared_state: SharedState::new(dpi_factor),
@@ -278,9 +278,9 @@ impl UnownedWindow {
 
             // set size hints
             {
-                let mut min_dimensions = window_attrs.min_dimensions
+                let mut min_dimensions = window_attrs.min_inner_size
                     .map(|size| size.to_physical(dpi_factor));
-                let mut max_dimensions = window_attrs.max_dimensions
+                let mut max_dimensions = window_attrs.max_inner_size
                     .map(|size| size.to_physical(dpi_factor));
                 if !window_attrs.resizable {
                     if util::wm_name_is_one_of(&["Xfwm4"]) {
@@ -290,8 +290,8 @@ impl UnownedWindow {
                         min_dimensions = Some(dimensions.into());
 
                         let mut shared_state_lock = window.shared_state.lock();
-                        shared_state_lock.min_dimensions = window_attrs.min_dimensions;
-                        shared_state_lock.max_dimensions = window_attrs.max_dimensions;
+                        shared_state_lock.min_inner_size = window_attrs.min_inner_size;
+                        shared_state_lock.max_inner_size = window_attrs.max_inner_size;
                     }
                 }
 
@@ -518,15 +518,15 @@ impl UnownedWindow {
             None => {
                 let flusher = self.set_fullscreen_hint(false);
                 if let Some(position) = self.shared_state.lock().restore_position.take() {
-                    self.set_position_inner(position.0, position.1).queue();
+                    self.set_outer_position_inner(position.0, position.1).queue();
                 }
                 flusher
             },
             Some(RootMonitorHandle { inner: PlatformMonitorHandle::X(monitor) }) => {
-                let window_position = self.get_position_physical();
+                let window_position = self.get_outer_position_physical();
                 self.shared_state.lock().restore_position = window_position;
-                let monitor_origin: (i32, i32) = monitor.get_position().into();
-                self.set_position_inner(monitor_origin.0, monitor_origin.1).queue();
+                let monitor_origin: (i32, i32) = monitor.get_outer_position().into();
+                self.set_outer_position_inner(monitor_origin.0, monitor_origin.1).queue();
                 self.set_fullscreen_hint(true)
             }
             _ => unreachable!(),
@@ -543,7 +543,7 @@ impl UnownedWindow {
 
     fn get_rect(&self) -> Option<util::AaRect> {
         // TODO: This might round-trip more times than needed.
-        if let (Some(position), Some(size)) = (self.get_position_physical(), self.get_outer_size_physical()) {
+        if let (Some(position), Some(size)) = (self.get_outer_position_physical(), self.get_outer_size_physical()) {
             Some(util::AaRect::new(position, size))
         } else {
             None
@@ -710,26 +710,26 @@ impl UnownedWindow {
         (*self.shared_state.lock()).frame_extents.take();
     }
 
-    pub(crate) fn get_position_physical(&self) -> Option<(i32, i32)> {
+    pub(crate) fn get_outer_position_physical(&self) -> Option<(i32, i32)> {
         let extents = (*self.shared_state.lock()).frame_extents.clone();
         if let Some(extents) = extents {
             self.get_inner_position_physical()
                 .map(|(x, y)| extents.inner_pos_to_outer(x, y))
         } else {
             self.update_cached_frame_extents();
-            self.get_position_physical()
+            self.get_outer_position_physical()
         }
     }
 
     #[inline]
-    pub fn get_position(&self) -> Option<LogicalPosition> {
+    pub fn get_outer_position(&self) -> Option<LogicalPosition> {
         let extents = (*self.shared_state.lock()).frame_extents.clone();
         if let Some(extents) = extents {
             self.get_inner_position()
                 .map(|logical| extents.inner_pos_to_outer_logical(logical, self.get_hidpi_factor()))
         } else {
             self.update_cached_frame_extents();
-            self.get_position()
+            self.get_outer_position()
         }
     }
 
@@ -745,7 +745,7 @@ impl UnownedWindow {
             .map(|coords| self.logicalize_coords(coords))
     }
 
-    pub(crate) fn set_position_inner(&self, mut x: i32, mut y: i32) -> util::Flusher {
+    pub(crate) fn set_outer_position_inner(&self, mut x: i32, mut y: i32) -> util::Flusher {
         // There are a few WMs that set client area position rather than window position, so
         // we'll translate for consistency.
         if util::wm_name_is_one_of(&["Enlightenment", "FVWM"]) {
@@ -755,7 +755,7 @@ impl UnownedWindow {
                 y += extents.frame_extents.top as i32;
             } else {
                 self.update_cached_frame_extents();
-                return self.set_position_inner(x, y);
+                return self.set_outer_position_inner(x, y);
             }
         }
         unsafe {
@@ -769,16 +769,16 @@ impl UnownedWindow {
         util::Flusher::new(&self.xconn)
     }
 
-    pub(crate) fn set_position_physical(&self, x: i32, y: i32) {
-        self.set_position_inner(x, y)
+    pub(crate) fn set_outer_position_physical(&self, x: i32, y: i32) {
+        self.set_outer_position_inner(x, y)
             .flush()
             .expect("Failed to call `XMoveWindow`");
     }
 
     #[inline]
-    pub fn set_position(&self, logical_position: LogicalPosition) {
+    pub fn set_outer_position(&self, logical_position: LogicalPosition) {
         let (x, y) = logical_position.to_physical(self.get_hidpi_factor()).into();
-        self.set_position_physical(x, y);
+        self.set_outer_position_physical(x, y);
     }
 
     pub(crate) fn get_inner_size_physical(&self) -> Option<(u32, u32)> {
@@ -849,8 +849,8 @@ impl UnownedWindow {
     }
 
     #[inline]
-    pub fn set_min_dimensions(&self, logical_dimensions: Option<LogicalSize>) {
-        self.shared_state.lock().min_dimensions = logical_dimensions;
+    pub fn set_min_inner_size(&self, logical_dimensions: Option<LogicalSize>) {
+        self.shared_state.lock().min_inner_size = logical_dimensions;
         let physical_dimensions = logical_dimensions.map(|logical_dimensions| {
             logical_dimensions.to_physical(self.get_hidpi_factor()).into()
         });
@@ -863,8 +863,8 @@ impl UnownedWindow {
     }
 
     #[inline]
-    pub fn set_max_dimensions(&self, logical_dimensions: Option<LogicalSize>) {
-        self.shared_state.lock().max_dimensions = logical_dimensions;
+    pub fn set_max_inner_size(&self, logical_dimensions: Option<LogicalSize>) {
+        self.shared_state.lock().max_inner_size = logical_dimensions;
         let physical_dimensions = logical_dimensions.map(|logical_dimensions| {
             logical_dimensions.to_physical(self.get_hidpi_factor()).into()
         });
@@ -918,7 +918,7 @@ impl UnownedWindow {
 
         let (logical_min, logical_max) = if resizable {
             let shared_state_lock = self.shared_state.lock();
-            (shared_state_lock.min_dimensions, shared_state_lock.max_dimensions)
+            (shared_state_lock.min_inner_size, shared_state_lock.max_inner_size)
         } else {
             let window_size = self.get_inner_size();
             (window_size.clone(), window_size)
@@ -983,7 +983,7 @@ impl UnownedWindow {
         0
     }
 
-    fn get_cursor(&self, cursor: MouseCursor) -> ffi::Cursor {
+    fn get_cursor(&self, cursor: CursorIcon) -> ffi::Cursor {
         let load = |name: &[u8]| {
             self.load_cursor(name)
         };
@@ -997,48 +997,48 @@ impl UnownedWindow {
         //
         // Try the better looking (or more suiting) names first.
         match cursor {
-            MouseCursor::Alias => load(b"link\0"),
-            MouseCursor::Arrow => load(b"arrow\0"),
-            MouseCursor::Cell => load(b"plus\0"),
-            MouseCursor::Copy => load(b"copy\0"),
-            MouseCursor::Crosshair => load(b"crosshair\0"),
-            MouseCursor::Default => load(b"left_ptr\0"),
-            MouseCursor::Hand => loadn(&[b"hand2\0", b"hand1\0"]),
-            MouseCursor::Help => load(b"question_arrow\0"),
-            MouseCursor::Move => load(b"move\0"),
-            MouseCursor::Grab => loadn(&[b"openhand\0", b"grab\0"]),
-            MouseCursor::Grabbing => loadn(&[b"closedhand\0", b"grabbing\0"]),
-            MouseCursor::Progress => load(b"left_ptr_watch\0"),
-            MouseCursor::AllScroll => load(b"all-scroll\0"),
-            MouseCursor::ContextMenu => load(b"context-menu\0"),
+            CursorIcon::Alias => load(b"link\0"),
+            CursorIcon::Arrow => load(b"arrow\0"),
+            CursorIcon::Cell => load(b"plus\0"),
+            CursorIcon::Copy => load(b"copy\0"),
+            CursorIcon::Crosshair => load(b"crosshair\0"),
+            CursorIcon::Default => load(b"left_ptr\0"),
+            CursorIcon::Hand => loadn(&[b"hand2\0", b"hand1\0"]),
+            CursorIcon::Help => load(b"question_arrow\0"),
+            CursorIcon::Move => load(b"move\0"),
+            CursorIcon::Grab => loadn(&[b"openhand\0", b"grab\0"]),
+            CursorIcon::Grabbing => loadn(&[b"closedhand\0", b"grabbing\0"]),
+            CursorIcon::Progress => load(b"left_ptr_watch\0"),
+            CursorIcon::AllScroll => load(b"all-scroll\0"),
+            CursorIcon::ContextMenu => load(b"context-menu\0"),
 
-            MouseCursor::NoDrop => loadn(&[b"no-drop\0", b"circle\0"]),
-            MouseCursor::NotAllowed => load(b"crossed_circle\0"),
+            CursorIcon::NoDrop => loadn(&[b"no-drop\0", b"circle\0"]),
+            CursorIcon::NotAllowed => load(b"crossed_circle\0"),
 
 
             // Resize cursors
-            MouseCursor::EResize => load(b"right_side\0"),
-            MouseCursor::NResize => load(b"top_side\0"),
-            MouseCursor::NeResize => load(b"top_right_corner\0"),
-            MouseCursor::NwResize => load(b"top_left_corner\0"),
-            MouseCursor::SResize => load(b"bottom_side\0"),
-            MouseCursor::SeResize => load(b"bottom_right_corner\0"),
-            MouseCursor::SwResize => load(b"bottom_left_corner\0"),
-            MouseCursor::WResize => load(b"left_side\0"),
-            MouseCursor::EwResize => load(b"h_double_arrow\0"),
-            MouseCursor::NsResize => load(b"v_double_arrow\0"),
-            MouseCursor::NwseResize => loadn(&[b"bd_double_arrow\0", b"size_bdiag\0"]),
-            MouseCursor::NeswResize => loadn(&[b"fd_double_arrow\0", b"size_fdiag\0"]),
-            MouseCursor::ColResize => loadn(&[b"split_h\0", b"h_double_arrow\0"]),
-            MouseCursor::RowResize => loadn(&[b"split_v\0", b"v_double_arrow\0"]),
+            CursorIcon::EResize => load(b"right_side\0"),
+            CursorIcon::NResize => load(b"top_side\0"),
+            CursorIcon::NeResize => load(b"top_right_corner\0"),
+            CursorIcon::NwResize => load(b"top_left_corner\0"),
+            CursorIcon::SResize => load(b"bottom_side\0"),
+            CursorIcon::SeResize => load(b"bottom_right_corner\0"),
+            CursorIcon::SwResize => load(b"bottom_left_corner\0"),
+            CursorIcon::WResize => load(b"left_side\0"),
+            CursorIcon::EwResize => load(b"h_double_arrow\0"),
+            CursorIcon::NsResize => load(b"v_double_arrow\0"),
+            CursorIcon::NwseResize => loadn(&[b"bd_double_arrow\0", b"size_bdiag\0"]),
+            CursorIcon::NeswResize => loadn(&[b"fd_double_arrow\0", b"size_fdiag\0"]),
+            CursorIcon::ColResize => loadn(&[b"split_h\0", b"h_double_arrow\0"]),
+            CursorIcon::RowResize => loadn(&[b"split_v\0", b"v_double_arrow\0"]),
 
-            MouseCursor::Text => loadn(&[b"text\0", b"xterm\0"]),
-            MouseCursor::VerticalText => load(b"vertical-text\0"),
+            CursorIcon::Text => loadn(&[b"text\0", b"xterm\0"]),
+            CursorIcon::VerticalText => load(b"vertical-text\0"),
 
-            MouseCursor::Wait => load(b"watch\0"),
+            CursorIcon::Wait => load(b"watch\0"),
 
-            MouseCursor::ZoomIn => load(b"zoom-in\0"),
-            MouseCursor::ZoomOut => load(b"zoom-out\0"),
+            CursorIcon::ZoomIn => load(b"zoom-in\0"),
+            CursorIcon::ZoomOut => load(b"zoom-out\0"),
         }
     }
 
@@ -1053,9 +1053,9 @@ impl UnownedWindow {
     }
 
     #[inline]
-    pub fn set_cursor(&self, cursor: MouseCursor) {
+    pub fn set_cursor_icon(&self, cursor: CursorIcon) {
         *self.cursor.lock() = cursor;
-        if !*self.cursor_hidden.lock() {
+        if *self.cursor_visible.lock() {
             self.update_cursor(self.get_cursor(cursor));
         }
     }
@@ -1099,7 +1099,7 @@ impl UnownedWindow {
     }
 
     #[inline]
-    pub fn grab_cursor(&self, grab: bool) -> Result<(), String> {
+    pub fn set_cursor_grab(&self, grab: bool) -> Result<(), String> {
         let mut grabbed_lock = self.cursor_grabbed.lock();
         if grab == *grabbed_lock { return Ok(()); }
         unsafe {
@@ -1155,16 +1155,16 @@ impl UnownedWindow {
     }
 
     #[inline]
-    pub fn hide_cursor(&self, hide: bool) {
-        let mut hidden_lock = self.cursor_hidden.lock();
-        if hide == *hidden_lock {return; }
-        let cursor = if hide {
-            self.create_empty_cursor().expect("Failed to create empty cursor")
-        } else {
+    pub fn set_cursor_visible(&self, visible: bool) {
+        let mut visible_lock = self.cursor_visible.lock();
+        if visible == *visible_lock {return; }
+        let cursor = if visible {
             self.get_cursor(*self.cursor.lock())
+        } else {
+            self.create_empty_cursor().expect("Failed to create empty cursor")
         };
-        *hidden_lock = hide;
-        drop(hidden_lock);
+        *visible_lock = visible;
+        drop(visible_lock);
         self.update_cursor(cursor);
     }
 

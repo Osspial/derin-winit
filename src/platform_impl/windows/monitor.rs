@@ -25,7 +25,7 @@ pub struct MonitorHandle {
     /// A window that is positioned at these coordinates will overlap the monitor.
     position: (i32, i32),
     /// The current resolution in pixels on the monitor.
-    dimensions: (u32, u32),
+    size: (u32, u32),
     /// DPI scale factor.
     hidpi_factor: f64,
 }
@@ -119,7 +119,7 @@ impl MonitorHandle {
     pub(crate) fn from_hmonitor(hmonitor: HMONITOR) -> Self {
         let monitor_info = get_monitor_info(hmonitor).expect("`GetMonitorInfoW` failed");
         let place = monitor_info.rcMonitor;
-        let dimensions = (
+        let size = (
             (place.right - place.left) as u32,
             (place.bottom - place.top) as u32,
         );
@@ -128,16 +128,16 @@ impl MonitorHandle {
             monitor_name: util::wchar_ptr_to_string(monitor_info.szDevice.as_ptr()),
             primary: util::has_flag(monitor_info.dwFlags, winuser::MONITORINFOF_PRIMARY),
             position: (place.left as i32, place.top as i32),
-            dimensions,
+            size,
             hidpi_factor: dpi_to_scale_factor(get_monitor_dpi(hmonitor).unwrap_or(96)),
         }
     }
 
     pub(crate) fn contains_point(&self, point: &POINT) -> bool {
         let left = self.position.0 as LONG;
-        let right = left + self.dimensions.0 as LONG;
+        let right = left + self.size.0 as LONG;
         let top = self.position.1 as LONG;
-        let bottom = top + self.dimensions.1 as LONG;
+        let bottom = top + self.size.1 as LONG;
         point.x >= left && point.x <= right && point.y >= top && point.y <= bottom
     }
 
@@ -158,7 +158,7 @@ impl MonitorHandle {
 
     #[inline]
     pub fn get_dimensions(&self) -> PhysicalSize {
-        self.dimensions.into()
+        self.size.into()
     }
 
     #[inline]

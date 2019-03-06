@@ -74,7 +74,7 @@ impl fmt::Debug for MonitorHandle {
             name: self.get_name(),
             native_identifier: self.get_native_identifier(),
             dimensions: self.get_dimensions(),
-            position: self.get_position(),
+            position: self.get_outer_position(),
             hidpi_factor: self.get_hidpi_factor(),
         };
 
