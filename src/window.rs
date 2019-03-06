@@ -549,8 +549,8 @@ impl Window {
 
     /// Sets location of IME candidate box in client area coordinates relative to the top left.
     #[inline]
-    pub fn set_ime_spot(&self, position: LogicalPosition) {
-        self.window.set_ime_spot(position)
+    pub fn set_ime_position(&self, position: LogicalPosition) {
+        self.window.set_ime_position(position)
     }
 
     /// Returns the monitor on which the window currently resides

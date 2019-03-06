@@ -44,7 +44,7 @@ use CreationError::OsError;
 use os::macos::{ActivationPolicy, WindowExt};
 use platform_impl::platform::{ffi, util};
 use platform_impl::platform::event_loop::{EventLoop, Shared};
-use platform_impl::platform::view::{new_view, set_ime_spot};
+use platform_impl::platform::view::{new_view, set_ime_position};
 use window::MonitorHandle as RootMonitorHandle;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1243,8 +1243,8 @@ impl Window2 {
     }
 
     #[inline]
-    pub fn set_ime_spot(&self, logical_spot: LogicalPosition) {
-        set_ime_spot(*self.view, *self.input_context, logical_spot.x, logical_spot.y);
+    pub fn set_ime_position(&self, logical_spot: LogicalPosition) {
+        set_ime_position(*self.view, *self.input_context, logical_spot.x, logical_spot.y);
     }
 
     #[inline]

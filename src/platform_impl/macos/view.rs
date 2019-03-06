@@ -47,7 +47,7 @@ pub fn new_view(window: id, shared: Weak<Shared>) -> (IdRef, Weak<Mutex<util::Cu
     }
 }
 
-pub fn set_ime_spot(view: id, input_context: id, x: f64, y: f64) {
+pub fn set_ime_position(view: id, input_context: id, x: f64, y: f64) {
     unsafe {
         let state_ptr: *mut c_void = *(*view).get_mut_ivar("winitState");
         let state = &mut *(state_ptr as *mut ViewState);

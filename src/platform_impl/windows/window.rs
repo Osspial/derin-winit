@@ -519,7 +519,7 @@ impl Window {
     }
 
     #[inline]
-    pub fn set_ime_spot(&self, _logical_spot: LogicalPosition) {
+    pub fn set_ime_position(&self, _logical_spot: LogicalPosition) {
         unimplemented!();
     }
 }
