@@ -73,7 +73,7 @@ impl fmt::Debug for MonitorHandle {
         let monitor_id_proxy = MonitorHandle {
             name: self.get_name(),
             native_identifier: self.get_native_identifier(),
-            dimensions: self.get_dimensions(),
+            dimensions: self.get_size(),
             position: self.get_outer_position(),
             hidpi_factor: self.get_hidpi_factor(),
         };
@@ -94,7 +94,7 @@ impl MonitorHandle {
         self.0
     }
 
-    pub fn get_dimensions(&self) -> PhysicalSize {
+    pub fn get_size(&self) -> PhysicalSize {
         let MonitorHandle(display_id) = *self;
         let display = CGDisplay::new(display_id);
         let height = display.pixels_high();

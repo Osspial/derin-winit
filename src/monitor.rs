@@ -65,8 +65,8 @@ impl MonitorHandle {
 
     /// Returns the monitor's resolution.
     #[inline]
-    pub fn get_dimensions(&self) -> PhysicalSize {
-        self.inner.get_dimensions()
+    pub fn get_size(&self) -> PhysicalSize {
+        self.inner.get_size()
     }
 
     /// Returns the top-left corner position of the monitor relative to the larger full

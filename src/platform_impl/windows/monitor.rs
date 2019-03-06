@@ -157,7 +157,7 @@ impl MonitorHandle {
     }
 
     #[inline]
-    pub fn get_dimensions(&self) -> PhysicalSize {
+    pub fn get_size(&self) -> PhysicalSize {
         self.size.into()
     }
 

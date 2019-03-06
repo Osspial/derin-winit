@@ -51,7 +51,7 @@ impl MonitorRepr {
         }
     }
 
-    pub unsafe fn get_dimensions(&self) -> (u32, u32) {
+    pub unsafe fn get_size(&self) -> (u32, u32) {
         match *self {
             MonitorRepr::Monitor(monitor) => ((*monitor).width as u32, (*monitor).height as u32),
             MonitorRepr::Crtc(crtc) => ((*crtc).width as u32, (*crtc).height as u32),
@@ -102,7 +102,7 @@ impl XConnection {
         );
         let name = String::from_utf8_lossy(name_slice).into();
         let hidpi_factor = calc_dpi_factor(
-            repr.get_dimensions(),
+            repr.get_size(),
             ((*output_info).mm_width as u64, (*output_info).mm_height as u64),
         );
         (self.xrandr.XRRFreeOutputInfo)(output_info);

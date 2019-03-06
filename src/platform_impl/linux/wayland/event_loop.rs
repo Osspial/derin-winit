@@ -521,7 +521,7 @@ impl fmt::Debug for MonitorHandle {
         let monitor_id_proxy = MonitorHandle {
             name: self.get_name(),
             native_identifier: self.get_native_identifier(),
-            dimensions: self.get_dimensions(),
+            dimensions: self.get_size(),
             position: self.get_outer_position(),
             hidpi_factor: self.get_hidpi_factor(),
         };
@@ -542,7 +542,7 @@ impl MonitorHandle {
         self.mgr.with_info(&self.proxy, |id, _| id).unwrap_or(0)
     }
 
-    pub fn get_dimensions(&self) -> PhysicalSize {
+    pub fn get_size(&self) -> PhysicalSize {
         match self.mgr.with_info(&self.proxy, |_, info| {
             info.modes
                 .iter()

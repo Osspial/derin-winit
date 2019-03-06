@@ -159,7 +159,7 @@ impl fmt::Debug for MonitorHandle {
 
         let monitor_id_proxy = MonitorHandle {
             name: self.get_name(),
-            dimensions: self.get_dimensions(),
+            dimensions: self.get_size(),
             position: self.get_outer_position(),
             hidpi_factor: self.get_hidpi_factor(),
         };
@@ -181,7 +181,7 @@ impl MonitorHandle {
     }
 
     #[inline]
-    pub fn get_dimensions(&self) -> PhysicalSize {
+    pub fn get_size(&self) -> PhysicalSize {
         let bounds: CGRect = unsafe { msg_send![self.get_uiscreen(), nativeBounds] };
         (bounds.size.width as f64, bounds.size.height as f64).into()
     }

@@ -104,7 +104,7 @@ impl EventLoop {
                         None
                     } else {
                         let dpi_factor = MonitorHandle.get_hidpi_factor();
-                        let physical_size = MonitorHandle.get_dimensions();
+                        let physical_size = MonitorHandle.get_size();
                         let size = LogicalSize::from_physical(physical_size, dpi_factor);
                         Some(Event::WindowEvent {
                             window_id: RootWindowId(WindowId),
@@ -204,7 +204,7 @@ impl fmt::Debug for MonitorHandle {
 
         let monitor_id_proxy = MonitorHandle {
             name: self.get_name(),
-            dimensions: self.get_dimensions(),
+            dimensions: self.get_size(),
             position: self.get_outer_position(),
             hidpi_factor: self.get_hidpi_factor(),
         };
@@ -220,7 +220,7 @@ impl MonitorHandle {
     }
 
     #[inline]
-    pub fn get_dimensions(&self) -> PhysicalSize {
+    pub fn get_size(&self) -> PhysicalSize {
         unsafe {
             let window = android_glue::get_native_window();
             (
@@ -322,7 +322,7 @@ impl Window {
             None
         } else {
             let dpi_factor = self.get_hidpi_factor();
-            let physical_size = self.get_current_monitor().get_dimensions();
+            let physical_size = self.get_current_monitor().get_size();
             Some(LogicalSize::from_physical(physical_size, dpi_factor))
         }
     }

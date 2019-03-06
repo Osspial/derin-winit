@@ -67,7 +67,7 @@ impl MonitorHandle {
         primary: bool,
     ) -> Option<Self> {
         let (name, hidpi_factor) = unsafe { xconn.get_output_info(resources, &repr)? };
-        let (dimensions, position) = unsafe { (repr.get_dimensions(), repr.get_outer_position()) };
+        let (dimensions, position) = unsafe { (repr.get_size(), repr.get_outer_position()) };
         let rect = util::AaRect::new(position, dimensions);
         Some(MonitorHandle {
             id,
@@ -89,7 +89,7 @@ impl MonitorHandle {
         self.id as u32
     }
 
-    pub fn get_dimensions(&self) -> PhysicalSize {
+    pub fn get_size(&self) -> PhysicalSize {
         self.inner_size.into()
     }
 
