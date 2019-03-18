@@ -4,10 +4,43 @@
 //! processed and used to modify the program state. For more details, see the root-level documentation.
 //!
 //! [event_loop_run]: ../event_loop/struct.EventLoop.html#method.run
+
+/// This macro is a hack so that we can embed `winit-keyboard-map.svg` in the generated documentation.
+/// It's necessary because attributes can't take macros as inputs, and this works around that.
+macro_rules! keyboard_module {
+    (
+        include $doc_path:expr
+    ) => {
+        keyboard_module!(doc include_str!($doc_path));
+    };
+    (doc $doc_str:expr) => {
+        /// Keyboard event types.
+        ///
+        /// `PhysicalKey` represents the physical location of the key, and is independent of keymap.
+        /// The exact position of each key is shown on the chart below.
+        ///
+        /// `LogicalKey` represents the logical meaning of the key. For latin-script keyboards, the
+        /// outputted alphanumeric key is the remapped latin letter for that keymap. The `Intl` keys
+        /// are positioned with the following rules:
+        /// - If the corresponding QWERTY key is in a different location in the keymap (e.g. DVORAK
+        ///   semicolon), the code corresponds to that key.
+        /// - Otherwise, the key appears in the physical location of the keymap, as shown in the chart.
+        ///
+        /// TODO BEFORE MERGE: MAKE ABOVE LINES MORE FRIENDLY AND DOCUMENT EACH TYPE IN DETAIL.
+        ///
+        /// TODO: ADD LINKS TO VARIANTS IN SVG
+        #[doc = $doc_str]
+        pub mod keyboard;
+    };
+}
+keyboard_module!(include "./event/winit-keyboard-map.svg");
+
 use std::time::Instant;
 use std::path::PathBuf;
 
 use dpi::{LogicalPosition, LogicalSize};
+use self::keyboard::{InputEvent, ModifierState};
+use platform_impl;
 use window::WindowId;
 
 pub mod device;
@@ -133,7 +166,10 @@ pub enum WindowEvent {
     Focused(bool),
 
     /// An event from the keyboard has been received.
-    KeyboardInput(KeyboardInput),
+    KeyboardInput(InputEvent),
+
+    /// The keymap has been changed, and any labels displayed to the user should be reloaded.
+    KeymapChanged,
 
     /// The cursor has moved on the window.
     CursorMoved {
@@ -141,7 +177,7 @@ pub enum WindowEvent {
         /// limited by the display area and it may have been transformed by the OS to implement effects such as cursor
         /// acceleration, it should not be used to implement non-cursor-like interactions such as 3D camera control.
         position: LogicalPosition,
-        modifiers: ModifiersState
+        modifiers: ModifierState
     },
 
     /// The cursor has entered the window.
@@ -151,10 +187,10 @@ pub enum WindowEvent {
     CursorLeft,
 
     /// A mouse wheel movement or touchpad scroll occurred.
-    MouseWheel { delta: MouseScrollDelta, phase: TouchPhase, modifiers: ModifiersState },
+    MouseWheel { delta: MouseScrollDelta, phase: TouchPhase, modifiers: ModifierState },
 
     /// An mouse button press has been received.
-    MouseInput { state: ElementState, button: MouseButton, modifiers: ModifiersState },
+    MouseInput { state: ElementState, button: MouseButton, modifiers: ModifierState },
 
 
     /// Touchpad pressure event.
@@ -182,33 +218,45 @@ pub enum WindowEvent {
     HiDpiFactorChanged(f64),
 }
 
-/// A keyboard input event.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct KeyboardInput {
-    /// Identifies the physical key pressed
-    ///
-    /// This should not change if the user adjusts the host's keyboard map. Use when the physical location of the
-    /// key is more important than the key's host GUI semantics, such as for movement controls in a first-person
-    /// game.
-    pub scancode: ScanCode,
+/// Represents raw hardware events that are not associated with any particular window.
+///
+/// Useful for interactions that diverge significantly from a conventional 2D GUI, such as 3D camera or first-person
+/// game controls. Many physical actions, such as mouse movement, can produce both device and window events. Because
+/// window events typically arise from virtual devices (corresponding to GUI cursors and keyboard focus) the device IDs
+/// may not match.
+///
+/// Note that these events are delivered regardless of input focus.
+#[derive(Clone, Debug, PartialEq)]
+pub enum DeviceEvent {
+    Added,
+    Removed,
 
-    pub state: ElementState,
-
-    /// Identifies the semantic meaning of the key
+    /// Change in physical position of a pointing device.
     ///
-    /// Use when the semantics of the key are more important than the physical location of the key, such as when
-    /// implementing appropriate behavior for "page up."
-    pub virtual_keycode: Option<VirtualKeyCode>,
+    /// This represents raw, unfiltered physical motion. Not to be confused with `WindowEvent::CursorMoved`.
+    MouseMotion {
+        /// (x, y) change in position in unspecified units.
+        ///
+        /// Different devices may use different units.
+        delta: (f64, f64),
+    },
 
-    /// Modifier keys active at the time of this input.
-    ///
-    /// This is tracked internally to avoid tracking errors arising from modifier key state changes when events from
-    /// this device are not being delivered to the application, e.g. due to keyboard focus being elsewhere.
-    pub modifiers: ModifiersState
+    /// Physical scroll event
+    MouseWheel {
+        delta: MouseScrollDelta,
+    },
+
+    /// Motion on some analog axis.  This event will be reported for all arbitrary input devices
+    /// that winit supports on this platform, including mouse devices.  If the device is a mouse
+    /// device then this will be reported alongside the MouseMotion event.
+    Motion { axis: AxisId, value: f64 },
+
+    Button { button: ButtonId, state: ElementState },
+    Key(InputEvent),
+    Text { codepoint: char },
 }
 
-/// Touch input state.
+/// Describes touch-screen input state.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TouchPhase {
@@ -279,222 +327,4 @@ pub enum MouseScrollDelta {
 	/// supported by the device (eg. a touchpad) and
 	/// platform.
 	PixelDelta(LogicalPosition),
-}
-
-/// Symbolic name of a keyboard key.
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
-#[repr(u32)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum VirtualKeyCode {
-    /// The '1' key over the letters.
-    Key1,
-    /// The '2' key over the letters.
-    Key2,
-    /// The '3' key over the letters.
-    Key3,
-    /// The '4' key over the letters.
-    Key4,
-    /// The '5' key over the letters.
-    Key5,
-    /// The '6' key over the letters.
-    Key6,
-    /// The '7' key over the letters.
-    Key7,
-    /// The '8' key over the letters.
-    Key8,
-    /// The '9' key over the letters.
-    Key9,
-    /// The '0' key over the 'O' and 'P' keys.
-    Key0,
-
-    A,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
-    I,
-    J,
-    K,
-    L,
-    M,
-    N,
-    O,
-    P,
-    Q,
-    R,
-    S,
-    T,
-    U,
-    V,
-    W,
-    X,
-    Y,
-    Z,
-
-    /// The Escape key, next to F1.
-    Escape,
-
-    F1,
-    F2,
-    F3,
-    F4,
-    F5,
-    F6,
-    F7,
-    F8,
-    F9,
-    F10,
-    F11,
-    F12,
-    F13,
-    F14,
-    F15,
-    F16,
-    F17,
-    F18,
-    F19,
-    F20,
-    F21,
-    F22,
-    F23,
-    F24,
-
-    /// Print Screen/SysRq.
-    Snapshot,
-    /// Scroll Lock.
-    Scroll,
-    /// Pause/Break key, next to Scroll lock.
-    Pause,
-
-    /// `Insert`, next to Backspace.
-    Insert,
-    Home,
-    Delete,
-    End,
-    PageDown,
-    PageUp,
-
-    Left,
-    Up,
-    Right,
-    Down,
-
-    /// The Backspace key, right over Enter.
-    // TODO: rename
-    Back,
-    /// The Enter key.
-    Return,
-    /// The space bar.
-    Space,
-
-    /// The "Compose" key on Linux.
-    Compose,
-
-    Caret,
-
-    Numlock,
-    Numpad0,
-    Numpad1,
-    Numpad2,
-    Numpad3,
-    Numpad4,
-    Numpad5,
-    Numpad6,
-    Numpad7,
-    Numpad8,
-    Numpad9,
-
-    AbntC1,
-    AbntC2,
-    Add,
-    Apostrophe,
-    Apps,
-    At,
-    Ax,
-    Backslash,
-    Calculator,
-    Capital,
-    Colon,
-    Comma,
-    Convert,
-    Decimal,
-    Divide,
-    Equals,
-    Grave,
-    Kana,
-    Kanji,
-    LAlt,
-    LBracket,
-    LControl,
-    LShift,
-    LWin,
-    Mail,
-    MediaSelect,
-    MediaStop,
-    Minus,
-    Multiply,
-    Mute,
-    MyComputer,
-    NavigateForward, // also called "Prior"
-    NavigateBackward, // also called "Next"
-    NextTrack,
-    NoConvert,
-    NumpadComma,
-    NumpadEnter,
-    NumpadEquals,
-    OEM102,
-    Period,
-    PlayPause,
-    Power,
-    PrevTrack,
-    RAlt,
-    RBracket,
-    RControl,
-    RShift,
-    RWin,
-    Semicolon,
-    Slash,
-    Sleep,
-    Stop,
-    Subtract,
-    Sysrq,
-    Tab,
-    Underline,
-    Unlabeled,
-    VolumeDown,
-    VolumeUp,
-    Wake,
-    WebBack,
-    WebFavorites,
-    WebForward,
-    WebHome,
-    WebRefresh,
-    WebSearch,
-    WebStop,
-    Yen,
-    Copy,
-    Paste,
-    Cut,
-}
-
-/// The current state of the keyboard modifiers
-///
-/// Each field of this struct represents a modifier and is `true` if this modifier is active.
-#[derive(Default, Debug, Hash, PartialEq, Eq, Clone, Copy)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-pub struct ModifiersState {
-    /// The "shift" key
-    pub shift: bool,
-    /// The "control" key
-    pub ctrl: bool,
-    /// The "alt" key
-    pub alt: bool,
-    /// The "logo" key
-    ///
-    /// This is the "windows" key on PC and "command" key on Mac.
-    pub logo: bool
 }

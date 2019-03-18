@@ -2,7 +2,7 @@ use std::{char, ptr};
 use std::os::raw::c_int;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 
-use event::{ScanCode, ModifiersState, VirtualKeyCode};
+use event::keyboard::{ModifierState, PhysicalKey, LogicalKey};
 
 use winapi::shared::minwindef::{WPARAM, LPARAM, UINT, HKL, HKL__};
 use winapi::um::winuser;
@@ -13,15 +13,16 @@ fn key_pressed(vkey: c_int) -> bool {
     }
 }
 
-pub fn get_key_mods() -> ModifiersState {
-    let mut mods = ModifiersState::default();
-    let filter_out_altgr = layout_uses_altgr() && key_pressed(winuser::VK_RMENU);
+pub fn get_key_mods() -> ModifierState {
+    unimplemented!()
+    // let mut mods = ModifierState::default();
+    // let filter_out_altgr = layout_uses_altgr() && key_pressed(winuser::VK_RMENU);
 
-    mods.shift = key_pressed(winuser::VK_SHIFT);
-    mods.ctrl = key_pressed(winuser::VK_CONTROL) && !filter_out_altgr;
-    mods.alt = key_pressed(winuser::VK_MENU) && !filter_out_altgr;
-    mods.logo = key_pressed(winuser::VK_LWIN) || key_pressed(winuser::VK_RWIN);
-    mods
+    // mods.shift = key_pressed(winuser::VK_SHIFT);
+    // mods.ctrl = key_pressed(winuser::VK_CONTROL) && !filter_out_altgr;
+    // mods.alt = key_pressed(winuser::VK_MENU) && !filter_out_altgr;
+    // mods.logo = key_pressed(winuser::VK_LWIN) || key_pressed(winuser::VK_RWIN);
+    // mods
 }
 
 unsafe fn get_char(keyboard_state: &[u8; 256], v_key: u32, hkl: HKL) -> Option<char> {
@@ -79,7 +80,9 @@ fn layout_uses_altgr() -> bool {
     }
 }
 
-pub fn vkey_to_winit_vkey(vkey: c_int) -> Option<VirtualKeyCode> {
+pub fn vkey_to_logical_key(vkey: c_int) -> Option<LogicalKey> {
+    unimplemented!()
+    /*
     // VK_* codes are documented here https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
     match vkey {
         //winuser::VK_LBUTTON => Some(VirtualKeyCode::Lbutton),
@@ -254,6 +257,11 @@ pub fn vkey_to_winit_vkey(vkey: c_int) -> Option<VirtualKeyCode> {
         winuser::VK_OEM_CLEAR => Some(VirtualKeyCode::Oem_clear),*/
         _ => None
     }
+    */
+}
+
+pub fn vkey_to_physical_key(vkey: c_int) -> Option<PhysicalKey> {
+    unimplemented!()
 }
 
 pub fn handle_extended_keys(vkey: c_int, mut scancode: UINT, extended: bool) -> Option<(c_int, UINT)> {
@@ -294,7 +302,8 @@ pub fn handle_extended_keys(vkey: c_int, mut scancode: UINT, extended: bool) -> 
     Some((vkey, scancode))
 }
 
-pub fn process_key_params(wparam: WPARAM, lparam: LPARAM) -> Option<(ScanCode, Option<VirtualKeyCode>)> {
+/*
+pub fn process_key_params(wparam: WPARAM, lparam: LPARAM) -> Option<(u32, Option<VirtualKeyCode>)> {
     let scancode = ((lparam >> 16) & 0xff) as UINT;
     let extended = (lparam & 0x01000000) != 0;
     handle_extended_keys(wparam as _, scancode, extended)
@@ -304,6 +313,7 @@ pub fn process_key_params(wparam: WPARAM, lparam: LPARAM) -> Option<(ScanCode, O
 // This is needed as windows doesn't properly distinguish
 // some virtual key codes for different keyboard layouts
 fn map_text_keys(win_virtual_key: i32) -> Option<VirtualKeyCode> {
+    unimplemented!()
     let char_key = unsafe { winuser::MapVirtualKeyA(win_virtual_key as u32, winuser::MAPVK_VK_TO_CHAR) } & 0x7FFF;
     match char::from_u32(char_key) {
         Some(';') => Some(VirtualKeyCode::Semicolon),
@@ -316,3 +326,4 @@ fn map_text_keys(win_virtual_key: i32) -> Option<VirtualKeyCode> {
         _ => None
     }
 }
+*/

@@ -11,7 +11,7 @@
 
 use platform_impl;
 use dpi::PhysicalPosition;
-use event::{AxisId, ButtonId, ElementState, KeyboardInput, MouseButton};
+use event::{AxisId, ButtonId, ElementState, MouseButton, keyboard::InputEvent};
 use event_loop::EventLoop;
 use std::{fmt, io};
 
@@ -124,14 +124,14 @@ pub enum MouseEvent {
 /// Raw keyboard events.
 ///
 /// See the module-level docs for more information.
-#[derive(Debug, Copy, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub enum KeyboardEvent {
     /// A keyboard device has been added.
     Added,
     /// A keyboard device has been removed.
     Removed,
     /// A key has been pressed or released.
-    Input(KeyboardInput),
+    Input(InputEvent),
 }
 
 /// Raw HID event.

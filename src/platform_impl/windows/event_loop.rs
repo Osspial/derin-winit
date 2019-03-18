@@ -47,14 +47,15 @@ use window::WindowId as RootWindowId;
 use event_loop::{ControlFlow, EventLoopWindowTarget as RootELW, EventLoopClosed};
 use dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
 use event::{
-    MouseButton, Touch, TouchPhase, StartCause, KeyboardInput, Event, WindowEvent,
-    device::{GamepadEvent, KeyboardEvent, HidEvent, MouseEvent}
+    MouseButton, Touch, TouchPhase, StartCause, Event, WindowEvent,
+    device::{GamepadEvent, KeyboardEvent, HidEvent, MouseEvent},
+    keyboard::InputEvent,
 };
 use platform_impl::platform::{
     MouseId, KeyboardId, HidId, GamepadHandle, WindowId,
     dpi::{become_dpi_aware, dpi_to_scale_factor, enable_non_client_dpi_scaling, get_hwnd_scale_factor},
     drop_handler::FileDropHandler,
-    event::{self, handle_extended_keys, process_key_params, vkey_to_winit_vkey},
+    event::{self, handle_extended_keys, vkey_to_logical_key},
     gamepad::Gamepad,
     raw_input::{self, get_raw_input_data, get_raw_mouse_button_state, RawInputData},
     util,
@@ -1089,19 +1090,24 @@ unsafe extern "system" fn public_window_callback<T>(
 
         winuser::WM_KEYDOWN | winuser::WM_SYSKEYDOWN => {
             use event::ElementState::Pressed;
-            use event::VirtualKeyCode;
+            // use event::VirtualKeyCode;
             if msg == winuser::WM_SYSKEYDOWN && wparam as i32 == winuser::VK_F4 {
                 commctrl::DefSubclassProc(window, msg, wparam, lparam)
             } else {
+                unimplemented!()
+                /*
                 if let Some((scancode, vkey)) = process_key_params(wparam, lparam) {
                     subclass_input.send_event(Event::WindowEvent {
                         window_id: RootWindowId(WindowId(window)),
-                        event: WindowEvent::KeyboardInput(KeyboardInput {
-                            state: Pressed,
-                            scancode: scancode,
-                            virtual_keycode: vkey,
-                            modifiers: event::get_key_mods(),
-                        }),
+                        event: WindowEvent::KeyboardInput {
+                            input: unimplemented!(),
+                            // input: KeyboardInput {
+                            //     state: Pressed,
+                            //     scancode: scancode,
+                            //     virtual_keycode: vkey,
+                            //     modifiers: event::get_key_mods(),
+                            // },
+                        },
                     });
                     // Windows doesn't emit a delete character by default, but in order to make it
                     // consistent with the other platforms we'll emit a delete character here.
@@ -1113,23 +1119,30 @@ unsafe extern "system" fn public_window_callback<T>(
                     }
                 }
                 0
+                */
             }
         },
 
         winuser::WM_KEYUP | winuser::WM_SYSKEYUP => {
             use event::ElementState::Released;
+            unimplemented!()
+            /*
             if let Some((scancode, vkey)) = process_key_params(wparam, lparam) {
                 subclass_input.send_event(Event::WindowEvent {
                     window_id: RootWindowId(WindowId(window)),
-                    event: WindowEvent::KeyboardInput(KeyboardInput {
-                        state: Released,
-                        scancode: scancode,
-                        virtual_keycode: vkey,
-                        modifiers: event::get_key_mods(),
-                    }),
+                    event: WindowEvent::KeyboardInput {
+                        input: unimplemented!(),
+                        // input: KeyboardInput {
+                        //     state: Released,
+                        //     scancode: scancode,
+                        //     virtual_keycode: vkey,
+                        //     modifiers: event::get_key_mods(),
+                        // },
+                    },
                 });
             }
             0
+            */
         },
 
         winuser::WM_LBUTTONDOWN => {
@@ -1716,17 +1729,18 @@ unsafe extern "system" fn thread_event_target_callback<T>(
                             scancode,
                             extended,
                         ) {
-                            let virtual_keycode = vkey_to_winit_vkey(vkey);
+                            let virtual_keycode = vkey_to_logical_key(vkey);
 
                             subclass_input.send_event(
                                 Event::KeyboardEvent(
                                     keyboard_id,
-                                    KeyboardEvent::Input(KeyboardInput {
-                                        scancode,
-                                        state,
-                                        virtual_keycode,
-                                        modifiers: event::get_key_mods(),
-                                    }),
+                                    unimplemented!()
+                                    // KeyboardEvent::Input(KeyboardInput {
+                                    //     scancode,
+                                    //     state,
+                                    //     virtual_keycode,
+                                    //     modifiers: event::get_key_mods(),
+                                    // }),
                                 )
                             );
                         }
