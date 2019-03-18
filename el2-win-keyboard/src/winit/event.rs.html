@@ -350,6 +350,9 @@
 <span id="350">350</span>
 <span id="351">351</span>
 <span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! The `Event` enum and assorted supporting types.</span>
 <span class="doccomment">//!</span>
@@ -370,14 +373,17 @@
         <span class="doccomment">/// Keyboard event types.</span>
         <span class="doccomment">///</span>
         <span class="doccomment">/// `PhysicalKey` represents the physical location of the key, and is independent of keymap.</span>
-        <span class="doccomment">/// The exact position of each key is shown on the chart below.</span>
+        <span class="doccomment">/// The exact position of each key is shown on the chart below. Num Lock has no effect for this.</span>
         <span class="doccomment">///</span>
         <span class="doccomment">/// `LogicalKey` represents the logical meaning of the key. For latin-script keyboards, the</span>
-        <span class="doccomment">/// outputted alphanumeric key is the remapped latin letter for that keymap. The `Intl` keys</span>
-        <span class="doccomment">/// are positioned with the following rules:</span>
+        <span class="doccomment">/// outputted alphanumeric key is the remapped latin letter for that keymap. If Num Lock is</span>
+        <span class="doccomment">/// inactive, the corresponding Navigation/Edit keys will be output when pressing the numpad</span>
+        <span class="doccomment">/// instead, and the Numpad 5 key won&#39;t output anything. The `Intl` keys are positioned</span>
+        <span class="doccomment">/// with the following rules:</span>
         <span class="doccomment">/// - If the corresponding QWERTY key is in a different location in the keymap (e.g. DVORAK</span>
         <span class="doccomment">///   semicolon), the code corresponds to that key.</span>
         <span class="doccomment">/// - Otherwise, the key appears in the physical location of the keymap, as shown in the chart.</span>
+        <span class="doccomment">///</span>
         <span class="doccomment">///</span>
         <span class="doccomment">/// TODO BEFORE MERGE: MAKE ABOVE LINES MORE FRIENDLY AND DOCUMENT EACH TYPE IN DETAIL.</span>
         <span class="doccomment">///</span>
