@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["AvailableMonitorsIter","An iterator over all available monitors."],["MonitorHandle","Handle to a monitor."]]});
