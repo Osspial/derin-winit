@@ -230,6 +230,11 @@ pub enum CommandKey {
     Paste,
     Undo,
     Redo,
+
+    /// Kana Mode on Japanese keyboards. Changes the input method.
+    IMEMode,
+    NonConvert,
+    Convert,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
@@ -284,41 +289,31 @@ pub enum ModifierKey {
     AltGr,
     MetaLeft,
     MetaRight,
-    /// Left thumb-shift key on Japanese keyboards.
-    ThumbShiftLeft,
-    /// Left thumb-shift key on Japanese keyboards.
-    ThumbShiftRight,
 
     NumLock,
     CapsLock,
     ScrollLock,
-    /// Kana input toggle on Japanese keyboards.
-    KanaLock,
 }
 
 bitflags! {
     pub struct ModifierState: u32 {
-        const CONTROL           = 0b000000000000011;
-        const CONTROL_LEFT      = 0b000000000000001;
-        const CONTROL_RIGHT     = 0b000000000000010;
-        const SHIFT             = 0b000000000001100;
-        const SHIFT_LEFT        = 0b000000000000100;
-        const SHIFT_RIGHT       = 0b000000000001000;
-        const ALT               = 0b000000000110000;
-        const ALT_LEFT          = 0b000000000010000;
-        const ALT_RIGHT         = 0b000000000100000;
+        const CONTROL           = 0b000000000011;
+        const CONTROL_LEFT      = 0b000000000001;
+        const CONTROL_RIGHT     = 0b000000000010;
+        const SHIFT             = 0b000000001100;
+        const SHIFT_LEFT        = 0b000000000100;
+        const SHIFT_RIGHT       = 0b000000001000;
+        const ALT               = 0b000000110000;
+        const ALT_LEFT          = 0b000000010000;
+        const ALT_RIGHT         = 0b000000100000;
         /// Note the `ALT` does not include `ALT_GR`.
-        const ALT_GR            = 0b000000001000000;
-        const META              = 0b000000110000000;
-        const META_LEFT         = 0b000000010000000;
-        const META_RIGHT        = 0b000000100000000;
-        const THUMB_SHIFT       = 0b000011000000000;
-        const THUMB_SHIFT_LEFT  = 0b000001000000000;
-        const THUMB_SHIFT_RIGHT = 0b000010000000000;
-        const NUM_LOCK          = 0b000100000000000;
-        const CAPS_LOCK         = 0b001000000000000;
-        const SCROLL_LOCK       = 0b010000000000000;
-        const KANA_LOCK         = 0b100000000000000;
+        const ALT_GR            = 0b000001000000;
+        const META              = 0b000110000000;
+        const META_LEFT         = 0b000010000000;
+        const META_RIGHT        = 0b000100000000;
+        const NUM_LOCK          = 0b001000000000;
+        const CAPS_LOCK         = 0b010000000000;
+        const SCROLL_LOCK       = 0b100000000000;
     }
 }
 

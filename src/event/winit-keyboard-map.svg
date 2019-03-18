@@ -36,14 +36,14 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.4"
-     inkscape:cx="535.89907"
-     inkscape:cy="552.70151"
+     inkscape:cx="419.82764"
+     inkscape:cy="352.70151"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
      inkscape:window-width="1920"
-     inkscape:window-height="1147"
-     inkscape:window-x="1042"
+     inkscape:window-height="1057"
+     inkscape:window-x="2962"
      inkscape:window-y="484"
      inkscape:window-maximized="1"
      inkscape:snap-nodes="true" />
@@ -1128,7 +1128,7 @@
        id="rect37262-5-5-8" />
     <path
        inkscape:connector-curvature="0"
-       style="fill:#ffffff;fill-opacity:1;stroke:#ffc576;stroke-width:1.47101414;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:#ffffff;fill-opacity:1;stroke:#ff9090;stroke-width:1.47101414;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        d="m 117.09271,83.839519 h 9.18571 c 1.13441,0 2.04767,0.909108 2.04767,2.038323 v 6.114944 c 0,1.129216 -0.91326,2.038324 -2.04767,2.038324 h -9.18571 c -1.13441,0 -2.04767,-0.909108 -2.04767,-2.038324 v -6.114944 c 0,-1.129215 0.91326,-2.038323 2.04767,-2.038323 z"
        id="rect37262-5-5-2"
        sodipodi:nodetypes="sssssssss" />
@@ -2433,13 +2433,13 @@
          style="stroke-width:0.26458332">F24</tspan></text>
     <path
        inkscape:connector-curvature="0"
-       style="fill:#ffffff;fill-opacity:1;stroke:#ffc576;stroke-width:1.47101414;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:#ffffff;fill-opacity:1;stroke:#ff9090;stroke-width:1.47101414;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        d="m 101.5298,83.76152 h 9.18571 c 1.13441,0 2.04767,0.909108 2.04767,2.038323 v 6.114944 c 0,1.129215 -0.91326,2.038324 -2.04767,2.038324 h -9.18571 c -1.13441,0 -2.047674,-0.909109 -2.047674,-2.038324 v -6.114944 c 0,-1.129215 0.913264,-2.038323 2.047674,-2.038323 z"
        id="rect37262-5-5-2-7"
        sodipodi:nodetypes="sssssssss" />
     <path
        inkscape:connector-curvature="0"
-       style="fill:#ffffff;fill-opacity:1;stroke:#ffc576;stroke-width:1.47101414;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:#ffffff;fill-opacity:1;stroke:#ff9090;stroke-width:1.47101414;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        d="m 55.412436,83.948633 h 9.185712 c 1.134409,0 2.047666,0.909108 2.047666,2.038323 v 6.114945 c 0,1.129215 -0.913257,2.038323 -2.047666,2.038323 h -9.185712 c -1.134411,0 -2.047671,-0.909108 -2.047671,-2.038323 v -6.114945 c 0,-1.129215 0.91326,-2.038323 2.047671,-2.038323 z"
        id="rect37262-5-5-2-7-6"
        sodipodi:nodetypes="sssssssss" />
@@ -2585,45 +2585,30 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.13566637px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       x="60.023663"
-       y="86.976692"
+       x="59.987431"
+       y="88.486282"
        id="text14628"><tspan
          sodipodi:role="line"
-         id="tspan14626"
-         x="60.023663"
-         y="86.976692"
-         style="stroke-width:0.26458332">Thumb</tspan><tspan
-         sodipodi:role="line"
-         x="60.023663"
-         y="90.112358"
-         id="tspan14630"
-         style="stroke-width:0.26458332">Shift</tspan><tspan
-         sodipodi:role="line"
-         x="60.023663"
-         y="93.248024"
+         x="59.987431"
+         y="88.486282"
          id="tspan14632"
-         style="stroke-width:0.26458332">Left</tspan></text>
+         style="stroke-width:0.26458332">Non</tspan><tspan
+         sodipodi:role="line"
+         x="59.987431"
+         y="91.621948"
+         style="stroke-width:0.26458332"
+         id="tspan1389">Convert</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.13566637px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       x="106.14102"
-       y="86.789597"
+       x="106.1048"
+       y="89.885811"
        id="text14628-5"><tspan
          sodipodi:role="line"
-         id="tspan14626-2"
-         x="106.14102"
-         y="86.789597"
-         style="stroke-width:0.26458332">Thumb</tspan><tspan
-         sodipodi:role="line"
-         x="106.14102"
-         y="89.925262"
-         id="tspan14630-6"
-         style="stroke-width:0.26458332">Shift</tspan><tspan
-         sodipodi:role="line"
-         x="106.14102"
-         y="93.060928"
+         x="106.1048"
+         y="89.885811"
          id="tspan14632-0"
-         style="stroke-width:0.26458332">Right</tspan></text>
+         style="stroke-width:0.26458332">Convert</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.91958261px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
@@ -2642,15 +2627,15 @@
        y="88.209015"
        id="text14688"><tspan
          sodipodi:role="line"
-         id="tspan14686"
          x="121.59848"
          y="88.209015"
-         style="stroke-width:0.26458332">Kana</tspan><tspan
+         id="tspan14690"
+         style="stroke-width:0.26458332">IME</tspan><tspan
          sodipodi:role="line"
          x="121.59848"
          y="92.128601"
-         id="tspan14690"
-         style="stroke-width:0.26458332">Lock</tspan></text>
+         style="stroke-width:0.26458332"
+         id="tspan1377">Mode</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.13566637px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
@@ -3033,7 +3018,7 @@
          id="tspan1358"
          x="126.81758"
          y="104.00457"
-         style="stroke-width:0.26458332"></tspan></text>
+         style="stroke-width:0.26458332" /></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.91958261px;line-height:1;font-family:'Fira Sans SemiBold';-inkscape-font-specification:'Fira Sans SemiBold, ';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
@@ -3044,7 +3029,7 @@
          id="tspan1366"
          x="141.25014"
          y="111.22086"
-         style="stroke-width:0.26458332"></tspan></text>
+         style="stroke-width:0.26458332" /></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.91958261px;line-height:1;font-family:'Fira Sans SemiBold';-inkscape-font-specification:'Fira Sans SemiBold, ';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
@@ -3055,6 +3040,6 @@
          id="tspan1374"
          x="122.80853"
          y="113.62628"
-         style="stroke-width:0.26458332"></tspan></text>
+         style="stroke-width:0.26458332" /></text>
   </g>
 </svg>
