@@ -426,11 +426,6 @@
 <span id="426">426</span>
 <span id="427">427</span>
 <span id="428">428</span>
-<span id="429">429</span>
-<span id="430">430</span>
-<span id="431">431</span>
-<span id="432">432</span>
-<span id="433">433</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// TODO: SERDE EVERYTHING</span>
 
@@ -664,6 +659,11 @@
     <span class="ident">Paste</span>,
     <span class="ident">Undo</span>,
     <span class="ident">Redo</span>,
+
+    <span class="doccomment">/// Kana Mode on Japanese keyboards. Changes the input method.</span>
+    <span class="ident">IMEMode</span>,
+    <span class="ident">NonConvert</span>,
+    <span class="ident">Convert</span>,
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Hash</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>)]</span>
@@ -718,41 +718,31 @@
     <span class="ident">AltGr</span>,
     <span class="ident">MetaLeft</span>,
     <span class="ident">MetaRight</span>,
-    <span class="doccomment">/// Left thumb-shift key on Japanese keyboards.</span>
-    <span class="ident">ThumbShiftLeft</span>,
-    <span class="doccomment">/// Left thumb-shift key on Japanese keyboards.</span>
-    <span class="ident">ThumbShiftRight</span>,
 
     <span class="ident">NumLock</span>,
     <span class="ident">CapsLock</span>,
     <span class="ident">ScrollLock</span>,
-    <span class="doccomment">/// Kana input toggle on Japanese keyboards.</span>
-    <span class="ident">KanaLock</span>,
 }
 
 <span class="macro">bitflags</span><span class="macro">!</span> {
     <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ModifierState</span>: <span class="ident">u32</span> {
-        <span class="kw">const</span> <span class="ident">CONTROL</span>           <span class="op">=</span> <span class="number">0b000000000000011</span>;
-        <span class="kw">const</span> <span class="ident">CONTROL_LEFT</span>      <span class="op">=</span> <span class="number">0b000000000000001</span>;
-        <span class="kw">const</span> <span class="ident">CONTROL_RIGHT</span>     <span class="op">=</span> <span class="number">0b000000000000010</span>;
-        <span class="kw">const</span> <span class="ident">SHIFT</span>             <span class="op">=</span> <span class="number">0b000000000001100</span>;
-        <span class="kw">const</span> <span class="ident">SHIFT_LEFT</span>        <span class="op">=</span> <span class="number">0b000000000000100</span>;
-        <span class="kw">const</span> <span class="ident">SHIFT_RIGHT</span>       <span class="op">=</span> <span class="number">0b000000000001000</span>;
-        <span class="kw">const</span> <span class="ident">ALT</span>               <span class="op">=</span> <span class="number">0b000000000110000</span>;
-        <span class="kw">const</span> <span class="ident">ALT_LEFT</span>          <span class="op">=</span> <span class="number">0b000000000010000</span>;
-        <span class="kw">const</span> <span class="ident">ALT_RIGHT</span>         <span class="op">=</span> <span class="number">0b000000000100000</span>;
+        <span class="kw">const</span> <span class="ident">CONTROL</span>           <span class="op">=</span> <span class="number">0b000000000011</span>;
+        <span class="kw">const</span> <span class="ident">CONTROL_LEFT</span>      <span class="op">=</span> <span class="number">0b000000000001</span>;
+        <span class="kw">const</span> <span class="ident">CONTROL_RIGHT</span>     <span class="op">=</span> <span class="number">0b000000000010</span>;
+        <span class="kw">const</span> <span class="ident">SHIFT</span>             <span class="op">=</span> <span class="number">0b000000001100</span>;
+        <span class="kw">const</span> <span class="ident">SHIFT_LEFT</span>        <span class="op">=</span> <span class="number">0b000000000100</span>;
+        <span class="kw">const</span> <span class="ident">SHIFT_RIGHT</span>       <span class="op">=</span> <span class="number">0b000000001000</span>;
+        <span class="kw">const</span> <span class="ident">ALT</span>               <span class="op">=</span> <span class="number">0b000000110000</span>;
+        <span class="kw">const</span> <span class="ident">ALT_LEFT</span>          <span class="op">=</span> <span class="number">0b000000010000</span>;
+        <span class="kw">const</span> <span class="ident">ALT_RIGHT</span>         <span class="op">=</span> <span class="number">0b000000100000</span>;
         <span class="doccomment">/// Note the `ALT` does not include `ALT_GR`.</span>
-        <span class="kw">const</span> <span class="ident">ALT_GR</span>            <span class="op">=</span> <span class="number">0b000000001000000</span>;
-        <span class="kw">const</span> <span class="ident">META</span>              <span class="op">=</span> <span class="number">0b000000110000000</span>;
-        <span class="kw">const</span> <span class="ident">META_LEFT</span>         <span class="op">=</span> <span class="number">0b000000010000000</span>;
-        <span class="kw">const</span> <span class="ident">META_RIGHT</span>        <span class="op">=</span> <span class="number">0b000000100000000</span>;
-        <span class="kw">const</span> <span class="ident">THUMB_SHIFT</span>       <span class="op">=</span> <span class="number">0b000011000000000</span>;
-        <span class="kw">const</span> <span class="ident">THUMB_SHIFT_LEFT</span>  <span class="op">=</span> <span class="number">0b000001000000000</span>;
-        <span class="kw">const</span> <span class="ident">THUMB_SHIFT_RIGHT</span> <span class="op">=</span> <span class="number">0b000010000000000</span>;
-        <span class="kw">const</span> <span class="ident">NUM_LOCK</span>          <span class="op">=</span> <span class="number">0b000100000000000</span>;
-        <span class="kw">const</span> <span class="ident">CAPS_LOCK</span>         <span class="op">=</span> <span class="number">0b001000000000000</span>;
-        <span class="kw">const</span> <span class="ident">SCROLL_LOCK</span>       <span class="op">=</span> <span class="number">0b010000000000000</span>;
-        <span class="kw">const</span> <span class="ident">KANA_LOCK</span>         <span class="op">=</span> <span class="number">0b100000000000000</span>;
+        <span class="kw">const</span> <span class="ident">ALT_GR</span>            <span class="op">=</span> <span class="number">0b000001000000</span>;
+        <span class="kw">const</span> <span class="ident">META</span>              <span class="op">=</span> <span class="number">0b000110000000</span>;
+        <span class="kw">const</span> <span class="ident">META_LEFT</span>         <span class="op">=</span> <span class="number">0b000010000000</span>;
+        <span class="kw">const</span> <span class="ident">META_RIGHT</span>        <span class="op">=</span> <span class="number">0b000100000000</span>;
+        <span class="kw">const</span> <span class="ident">NUM_LOCK</span>          <span class="op">=</span> <span class="number">0b001000000000</span>;
+        <span class="kw">const</span> <span class="ident">CAPS_LOCK</span>         <span class="op">=</span> <span class="number">0b010000000000</span>;
+        <span class="kw">const</span> <span class="ident">SCROLL_LOCK</span>       <span class="op">=</span> <span class="number">0b100000000000</span>;
     }
 }
 
