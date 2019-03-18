@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `keyboard` mod in crate `winit`."><meta name="keywords" content="rust, rustlang, rust-lang, keyboard"><title>winit::event::keyboard - Rust</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../winit/index.html'><img src='../../../rust-logo.png' alt='logo' width='100'></a><p class='location'>Module keyboard</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li></ul></div><p class='location'><a href='../../index.html'>winit</a>::<wbr><a href='../index.html'>event</a></p><script>window.sidebarCurrent = {name: 'keyboard', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../../src/winit/event/keyboard.rs.html#3-428' title='goto source code'>[src]</a></span><span class='in-band'>Module <a href='../../index.html'>winit</a>::<wbr><a href='../index.html'>event</a>::<wbr><a class="mod" href=''>keyboard</a></span></h1><div class='docblock'><p>Keyboard event types.</p>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `keyboard` mod in crate `winit`."><meta name="keywords" content="rust, rustlang, rust-lang, keyboard"><title>winit::event::keyboard - Rust</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../winit/index.html'><img src='../../../rust-logo.png' alt='logo' width='100'></a><p class='location'>Module keyboard</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li></ul></div><p class='location'><a href='../../index.html'>winit</a>::<wbr><a href='../index.html'>event</a></p><script>window.sidebarCurrent = {name: 'keyboard', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../../src/winit/event/keyboard.rs.html#3-458' title='goto source code'>[src]</a></span><span class='in-band'>Module <a href='../../index.html'>winit</a>::<wbr><a href='../index.html'>event</a>::<wbr><a class="mod" href=''>keyboard</a></span></h1><div class='docblock'><p>Keyboard event types.</p>
 <p><code>PhysicalKey</code> represents the physical location of the key, and is independent of keymap.
 The exact position of each key is shown on the chart below. Num Lock has no effect for this.</p>
 <p><code>LogicalKey</code> represents the logical meaning of the key. For latin-script keyboards, the
@@ -50,14 +50,14 @@ borderopacity=&quot;1.0&quot;
 inkscape:pageopacity=&quot;0.0&quot;
 inkscape:pageshadow=&quot;2&quot;
 inkscape:zoom=&quot;1.4&quot;
-inkscape:cx=&quot;419.82764&quot;
+inkscape:cx=&quot;303.75621&quot;
 inkscape:cy=&quot;352.70151&quot;
 inkscape:document-units=&quot;mm&quot;
 inkscape:current-layer=&quot;layer1&quot;
 showgrid=&quot;false&quot;
 inkscape:window-width=&quot;1920&quot;
-inkscape:window-height=&quot;1057&quot;
-inkscape:window-x=&quot;2962&quot;
+inkscape:window-height=&quot;1147&quot;
+inkscape:window-x=&quot;1042&quot;
 inkscape:window-y=&quot;484&quot;
 inkscape:window-maximized=&quot;1&quot;
 inkscape:snap-nodes=&quot;true&quot; /&gt;
@@ -1822,7 +1822,7 @@ sodipodi:role="line"
 id="tspan7403"
 x="24.326818"
 y="40.318916"
-style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Num1</tspan></text>
+style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Key1</tspan></text>
 <text
 xml:space="preserve"
 style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.91958261px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none"
@@ -1833,7 +1833,7 @@ sodipodi:role="line"
 id="tspan7407"
 x="36.66787"
 y="40.330414"
-style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Num2</tspan></text>
+style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Key2</tspan></text>
 <text
 xml:space="preserve"
 style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.91958261px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none"
@@ -1844,7 +1844,7 @@ sodipodi:role="line"
 id="tspan7411"
 x="49.019421"
 y="40.330414"
-style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Num3</tspan></text>
+style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Key3</tspan></text>
 <text
 xml:space="preserve"
 style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.91958261px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none"
@@ -1855,7 +1855,7 @@ sodipodi:role="line"
 id="tspan7415"
 x="61.299042"
 y="40.313183"
-style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Num4</tspan></text>
+style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Key4</tspan></text>
 <text
 xml:space="preserve"
 style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.91958261px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none"
@@ -1866,7 +1866,7 @@ sodipodi:role="line"
 id="tspan7419"
 x="73.73951"
 y="40.313183"
-style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Num5</tspan></text>
+style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Key5</tspan></text>
 <text
 xml:space="preserve"
 style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.91958261px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none"
@@ -1877,7 +1877,7 @@ sodipodi:role="line"
 id="tspan7423"
 x="86.039314"
 y="40.313183"
-style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Num6</tspan></text>
+style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Key6</tspan></text>
 <text
 xml:space="preserve"
 style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.91958261px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none"
@@ -1888,7 +1888,7 @@ sodipodi:role="line"
 id="tspan7427"
 x="98.408005"
 y="40.313183"
-style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Num7</tspan></text>
+style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Key7</tspan></text>
 <text
 xml:space="preserve"
 style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.91958261px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none"
@@ -1899,7 +1899,7 @@ sodipodi:role="line"
 id="tspan7431"
 x="110.74799"
 y="40.330414"
-style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Num8</tspan></text>
+style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Key8</tspan></text>
 <text
 xml:space="preserve"
 style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.91958261px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none"
@@ -1910,7 +1910,7 @@ sodipodi:role="line"
 id="tspan7435"
 x="123.10138"
 y="40.330414"
-style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Num9</tspan></text>
+style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Key9</tspan></text>
 <text
 xml:space="preserve"
 style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.91958261px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none"
@@ -1921,7 +1921,7 @@ sodipodi:role="line"
 id="tspan7439"
 x="135.41267"
 y="40.330414"
-style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Num0</tspan></text>
+style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none">Key0</tspan></text>
 <text
 xml:space="preserve"
 style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.13566637px;line-height:1;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.44108686;stroke-miterlimit:4;stroke-dasharray:none"
@@ -3060,7 +3060,8 @@ style="stroke-width:0.26458332" /></text>
 </div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
 <table><tr class='module-item'><td><a class="struct" href="struct.InputEvent.html" title='winit::event::keyboard::InputEvent struct'>InputEvent</a></td><td class='docblock-short'><p>TODO: COME UP WITH REAL NAME. <code>InputEvent</code> IS VAGUE.</p>
 </td></tr><tr class='module-item'><td><a class="struct" href="struct.Key.html" title='winit::event::keyboard::Key struct'>Key</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="struct" href="struct.KeyboardEvent.html" title='winit::event::keyboard::KeyboardEvent struct'>KeyboardEvent</a></td><td class='docblock-short'><p>Describes a keyboard input event.</p>
-</td></tr><tr class='module-item'><td><a class="struct" href="struct.ModifierState.html" title='winit::event::keyboard::ModifierState struct'>ModifierState</a></td><td class='docblock-short'></td></tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.ModifierState.html" title='winit::event::keyboard::ModifierState struct'>ModifierState</a></td><td class='docblock-short'><p>TODO: ADD SERDE SUPPORT. Just serializing this as a number is ugly, so we should find a better way.</p>
+</td></tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
 <table><tr class='module-item'><td><a class="enum" href="enum.CommandKey.html" title='winit::event::keyboard::CommandKey enum'>CommandKey</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="enum" href="enum.CompositionEvent.html" title='winit::event::keyboard::CompositionEvent enum'>CompositionEvent</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="enum" href="enum.EditKey.html" title='winit::event::keyboard::EditKey enum'>EditKey</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="enum" href="enum.FunctionKey.html" title='winit::event::keyboard::FunctionKey enum'>FunctionKey</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="enum" href="enum.KeyState.html" title='winit::event::keyboard::KeyState enum'>KeyState</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="enum" href="enum.LogicalAlphaNumKey.html" title='winit::event::keyboard::LogicalAlphaNumKey enum'>LogicalAlphaNumKey</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="enum" href="enum.LogicalKey.html" title='winit::event::keyboard::LogicalKey enum'>LogicalKey</a></td><td class='docblock-short'><p>Representation of the logical semantics of a key.</p>
 </td></tr><tr class='module-item'><td><a class="enum" href="enum.MediaKey.html" title='winit::event::keyboard::MediaKey enum'>MediaKey</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="enum" href="enum.ModifierKey.html" title='winit::event::keyboard::ModifierKey enum'>ModifierKey</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="enum" href="enum.NavigationKey.html" title='winit::event::keyboard::NavigationKey enum'>NavigationKey</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="enum" href="enum.NumpadKey.html" title='winit::event::keyboard::NumpadKey enum'>NumpadKey</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="enum" href="enum.PhysicalAlphaNumKey.html" title='winit::event::keyboard::PhysicalAlphaNumKey enum'>PhysicalAlphaNumKey</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="enum" href="enum.PhysicalKey.html" title='winit::event::keyboard::PhysicalKey enum'>PhysicalKey</a></td><td class='docblock-short'><p>Representation of the physical location of a key.</p>
 </td></tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
