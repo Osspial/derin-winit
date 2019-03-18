@@ -2,6 +2,7 @@
 
 /// TODO: COME UP WITH REAL NAME. `InputEvent` IS VAGUE.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct InputEvent {
     pub chara: Option<char>,
     pub composition: Option<CompositionEvent>,
@@ -9,26 +10,31 @@ pub struct InputEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum CompositionEvent {
-    CompositionStart(String),
-    CompositionUpdate(String),
-    CompositionEnd(String),
+    Start(String),
+    Update(String),
+    End(String),
+    Cancel,
 }
 
 /// Describes a keyboard input event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KeyboardEvent {
     pub state: KeyState,
     pub key: Option<Key>,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Key {
     pub physical: PhysicalKey,
     pub logical: LogicalKey,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum KeyState {
     Pressed,
     Repeated(usize),
@@ -39,6 +45,7 @@ pub enum KeyState {
 ///
 /// See module-level documentation.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(untagged))]
 pub enum PhysicalKey {
     AlphaNum(PhysicalAlphaNumKey),
     Navigation(NavigationKey),
@@ -54,6 +61,7 @@ pub enum PhysicalKey {
 ///
 /// See module-level documentation.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(untagged))]
 pub enum LogicalKey {
     AlphaNum(LogicalAlphaNumKey),
     Navigation(NavigationKey),
@@ -66,6 +74,7 @@ pub enum LogicalKey {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum PhysicalAlphaNumKey {
     A,
     B,
@@ -137,6 +146,7 @@ pub enum PhysicalAlphaNumKey {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum LogicalAlphaNumKey {
     A,
     B,
@@ -208,6 +218,7 @@ pub enum LogicalAlphaNumKey {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum EditKey {
     Space,
     Tab,
@@ -219,6 +230,7 @@ pub enum EditKey {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum CommandKey {
     Escape,
     Menu,
@@ -238,6 +250,7 @@ pub enum CommandKey {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum FunctionKey {
     F1,
     F2,
@@ -266,6 +279,7 @@ pub enum FunctionKey {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MediaKey {
     PlayPause,
     Pause,
@@ -279,6 +293,7 @@ pub enum MediaKey {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ModifierKey {
     ControlLeft,
     ControlRight,
@@ -296,28 +311,42 @@ pub enum ModifierKey {
 }
 
 bitflags! {
+    /// TODO: ADD SERDE SUPPORT. Just serializing this as a number is ugly, so we should find a better way.
     pub struct ModifierState: u32 {
-        const CONTROL           = 0b000000000011;
-        const CONTROL_LEFT      = 0b000000000001;
-        const CONTROL_RIGHT     = 0b000000000010;
-        const SHIFT             = 0b000000001100;
-        const SHIFT_LEFT        = 0b000000000100;
-        const SHIFT_RIGHT       = 0b000000001000;
-        const ALT               = 0b000000110000;
-        const ALT_LEFT          = 0b000000010000;
-        const ALT_RIGHT         = 0b000000100000;
-        /// Note the `ALT` does not include `ALT_GR`.
-        const ALT_GR            = 0b000001000000;
-        const META              = 0b000110000000;
-        const META_LEFT         = 0b000010000000;
-        const META_RIGHT        = 0b000100000000;
-        const NUM_LOCK          = 0b001000000000;
-        const CAPS_LOCK         = 0b010000000000;
-        const SCROLL_LOCK       = 0b100000000000;
+        /// Either control key is pressed.
+        const CONTROL           = 0b0000000000000001;
+        const CONTROL_LEFT      = 0b0000000000000010;
+        const CONTROL_RIGHT     = 0b0000000000000100;
+        /// Set of all `CONTROL*` flags.
+        const CONTROL_ALL       = 0b0000000000000111;
+        /// Either shift key is pressed.
+        const SHIFT             = 0b0000000000001000;
+        const SHIFT_LEFT        = 0b0000000000010000;
+        const SHIFT_RIGHT       = 0b0000000000100000;
+        /// Set of all `SHIFT*` flags.
+        const SHIFT_ALL         = 0b0000000000111000;
+        /// Either alt key is pressed.
+        const ALT               = 0b0000000001000000;
+        const ALT_LEFT          = 0b0000000010000000;
+        const ALT_RIGHT         = 0b0000000100000000;
+        /// Set of all `ALT*` flags, except `ALT_GR`.
+        const ALT_ALL           = 0b0000000111000000;
+        /// Note that setting `ALT_GR` doesn't set `ALT.
+        const ALT_GR            = 0b0000001000000000;
+        /// Either meta key is pressed.
+        const META              = 0b0000010000000000;
+        const META_LEFT         = 0b0000100000000000;
+        const META_RIGHT        = 0b0001000000000000;
+        /// Set of all `META*` flags.
+        const META_ALL          = 0b0001110000000000;
+        const NUM_LOCK          = 0b0010000000000000;
+        const CAPS_LOCK         = 0b0100000000000000;
+        const SCROLL_LOCK       = 0b1000000000000000;
     }
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum NavigationKey {
     Up,
     Down,
@@ -330,6 +359,7 @@ pub enum NavigationKey {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum NumpadKey {
     Divide,
     Multiply,
