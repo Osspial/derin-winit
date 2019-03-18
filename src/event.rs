@@ -17,14 +17,17 @@ macro_rules! keyboard_module {
         /// Keyboard event types.
         ///
         /// `PhysicalKey` represents the physical location of the key, and is independent of keymap.
-        /// The exact position of each key is shown on the chart below.
+        /// The exact position of each key is shown on the chart below. Num Lock has no effect for this.
         ///
         /// `LogicalKey` represents the logical meaning of the key. For latin-script keyboards, the
-        /// outputted alphanumeric key is the remapped latin letter for that keymap. The `Intl` keys
-        /// are positioned with the following rules:
+        /// outputted alphanumeric key is the remapped latin letter for that keymap. If Num Lock is
+        /// inactive, the corresponding Navigation/Edit keys will be output when pressing the numpad
+        /// instead, and the Numpad 5 key won't output anything. The `Intl` keys are positioned
+        /// with the following rules:
         /// - If the corresponding QWERTY key is in a different location in the keymap (e.g. DVORAK
         ///   semicolon), the code corresponds to that key.
         /// - Otherwise, the key appears in the physical location of the keymap, as shown in the chart.
+        ///
         ///
         /// TODO BEFORE MERGE: MAKE ABOVE LINES MORE FRIENDLY AND DOCUMENT EACH TYPE IN DETAIL.
         ///
