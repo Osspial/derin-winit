@@ -13,7 +13,7 @@ mod view;
 mod window;
 mod window_delegate;
 
-use std::{ops::Deref, sync::Arc};
+use std::{fmt, ops::Deref, sync::Arc};
 
 use {
     event::DeviceId as RootDeviceId, window::WindowAttributes,
@@ -45,6 +45,7 @@ pub struct Window {
     _delegate: util::IdRef,
 }
 
+#[derive(Debug)]
 pub enum OsError {
     CGError(core_graphics::base::CGError),
     CreationError(&'static str)
