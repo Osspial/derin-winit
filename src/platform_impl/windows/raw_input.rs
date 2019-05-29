@@ -44,6 +44,7 @@ use winapi::um::winuser::{
     RID_DEVICE_INFO_MOUSE,
     RIDEV_DEVNOTIFY,
     RIDEV_INPUTSINK,
+    RIDEV_NOLEGACY,
     RIDI_DEVICEINFO,
     RIDI_DEVICENAME,
     RIDI_PREPARSEDDATA,
@@ -227,7 +228,7 @@ pub fn register_for_raw_input(window_handle: HWND) -> bool {
         RAWINPUTDEVICE {
             usUsagePage: HID_USAGE_PAGE_GENERIC,
             usUsage: HID_USAGE_GENERIC_KEYBOARD,
-            dwFlags: flags,
+            dwFlags: flags | RIDEV_NOLEGACY,
             hwndTarget: window_handle,
         },
         RAWINPUTDEVICE {

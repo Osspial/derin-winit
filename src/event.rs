@@ -17,7 +17,7 @@ macro_rules! keyboard_module {
         /// Keyboard event types.
         ///
         /// `PhysicalKey` represents the physical location of the key, and is independent of keymap.
-        /// The exact position of each key is shown on the chart below. Num Lock has no effect for this.
+        /// The exact position of each key is shown on the chart below. Num Lock has no effect on this.
         ///
         /// `LogicalKey` represents the logical meaning of the key. For latin-script keyboards, the
         /// outputted alphanumeric key is the remapped latin letter for that keymap. If Num Lock is

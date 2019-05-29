@@ -55,7 +55,7 @@ use platform_impl::platform::{
     MouseId, KeyboardId, HidId, GamepadHandle, WindowId,
     dpi::{become_dpi_aware, dpi_to_scale_factor, enable_non_client_dpi_scaling, get_hwnd_scale_factor},
     drop_handler::FileDropHandler,
-    event::{self, handle_extended_keys, vkey_to_logical_key},
+    event::{self, handle_extended_keys},
     gamepad::Gamepad,
     raw_input::{self, get_raw_input_data, get_raw_mouse_button_state, RawInputData},
     util,

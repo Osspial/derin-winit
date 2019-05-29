@@ -134,7 +134,7 @@ pub enum PhysicalAlphaNumKey {
     /// Labeled `\|` on a UK keyboard. Doesn't exist on all keyboard layouts.
     IntlBackslashLeft,
     /// Labeled `\|` on a US keyboard. Doesn't exist on all keyboard layouts.
-    IntlBackslashRright,
+    IntlBackslashRight,
     /// Labeled `\ろ` (ro) on a Japanese keyboard. Doesn't exist on all keyboard layouts.
     IntlRo,
     /// Labeled `¥` (yen) on a Japanese keyboard and `\/` on a Russian keyboard. Doesn't exist on
@@ -206,7 +206,7 @@ pub enum LogicalAlphaNumKey {
     /// Labeled `\|` on a UK keyboard. Doesn't exist on all keyboard layouts.
     IntlBackslashLeft,
     /// Labeled `\|` on a US keyboard. Doesn't exist on all keyboard layouts.
-    IntlBackslashRright,
+    IntlBackslashRight,
     /// Labeled `\ろ` (ro) on a Japanese keyboard. Doesn't exist on all keyboard layouts.
     IntlRo,
     /// Labeled `¥` (yen) on a Japanese keyboard and `\/` on a Russian keyboard. Doesn't exist on
@@ -232,7 +232,7 @@ pub enum CommandKey {
     Escape,
     Menu,
     PrintScreen,
-    Break,
+    PauseBreak,
 
     Cut,
     Copy,

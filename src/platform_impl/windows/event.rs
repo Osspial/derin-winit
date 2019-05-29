@@ -2,7 +2,7 @@ use std::{char, ptr};
 use std::os::raw::c_int;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 
-use event::keyboard::{ModifierState, PhysicalKey, LogicalKey};
+use event::keyboard::{ModifierState, PhysicalKey, LogicalKey, EditKey, CommandKey, FunctionKey, NavigationKey, NumpadKey, ModifierKey, MediaKey};
 
 use winapi::shared::minwindef::{WPARAM, LPARAM, UINT, HKL, HKL__};
 use winapi::um::winuser;
@@ -80,226 +80,331 @@ fn layout_uses_altgr() -> bool {
     }
 }
 
-pub fn vkey_to_logical_key(vkey: c_int) -> Option<LogicalKey> {
-    unimplemented!()
-    /*
-    // VK_* codes are documented here https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
-    match vkey {
-        //winuser::VK_LBUTTON => Some(VirtualKeyCode::Lbutton),
-        //winuser::VK_RBUTTON => Some(VirtualKeyCode::Rbutton),
-        //winuser::VK_CANCEL => Some(VirtualKeyCode::Cancel),
-        //winuser::VK_MBUTTON => Some(VirtualKeyCode::Mbutton),
-        //winuser::VK_XBUTTON1 => Some(VirtualKeyCode::Xbutton1),
-        //winuser::VK_XBUTTON2 => Some(VirtualKeyCode::Xbutton2),
-        winuser::VK_BACK => Some(VirtualKeyCode::Back),
-        winuser::VK_TAB => Some(VirtualKeyCode::Tab),
-        //winuser::VK_CLEAR => Some(VirtualKeyCode::Clear),
-        winuser::VK_RETURN => Some(VirtualKeyCode::Return),
-        winuser::VK_LSHIFT => Some(VirtualKeyCode::LShift),
-        winuser::VK_RSHIFT => Some(VirtualKeyCode::RShift),
-        winuser::VK_LCONTROL => Some(VirtualKeyCode::LControl),
-        winuser::VK_RCONTROL => Some(VirtualKeyCode::RControl),
-        winuser::VK_LMENU => Some(VirtualKeyCode::LAlt),
-        winuser::VK_RMENU => Some(VirtualKeyCode::RAlt),
-        winuser::VK_PAUSE => Some(VirtualKeyCode::Pause),
-        winuser::VK_CAPITAL => Some(VirtualKeyCode::Capital),
-        winuser::VK_KANA => Some(VirtualKeyCode::Kana),
-        //winuser::VK_HANGUEL => Some(VirtualKeyCode::Hanguel),
-        //winuser::VK_HANGUL => Some(VirtualKeyCode::Hangul),
-        //winuser::VK_JUNJA => Some(VirtualKeyCode::Junja),
-        //winuser::VK_FINAL => Some(VirtualKeyCode::Final),
-        //winuser::VK_HANJA => Some(VirtualKeyCode::Hanja),
-        winuser::VK_KANJI => Some(VirtualKeyCode::Kanji),
-        winuser::VK_ESCAPE => Some(VirtualKeyCode::Escape),
-        winuser::VK_CONVERT => Some(VirtualKeyCode::Convert),
-        winuser::VK_NONCONVERT => Some(VirtualKeyCode::NoConvert),
-        //winuser::VK_ACCEPT => Some(VirtualKeyCode::Accept),
-        //winuser::VK_MODECHANGE => Some(VirtualKeyCode::Modechange),
-        winuser::VK_SPACE => Some(VirtualKeyCode::Space),
-        winuser::VK_PRIOR => Some(VirtualKeyCode::PageUp),
-        winuser::VK_NEXT => Some(VirtualKeyCode::PageDown),
-        winuser::VK_END => Some(VirtualKeyCode::End),
-        winuser::VK_HOME => Some(VirtualKeyCode::Home),
-        winuser::VK_LEFT => Some(VirtualKeyCode::Left),
-        winuser::VK_UP => Some(VirtualKeyCode::Up),
-        winuser::VK_RIGHT => Some(VirtualKeyCode::Right),
-        winuser::VK_DOWN => Some(VirtualKeyCode::Down),
-        //winuser::VK_SELECT => Some(VirtualKeyCode::Select),
-        //winuser::VK_PRINT => Some(VirtualKeyCode::Print),
-        //winuser::VK_EXECUTE => Some(VirtualKeyCode::Execute),
-        winuser::VK_SNAPSHOT => Some(VirtualKeyCode::Snapshot),
-        winuser::VK_INSERT => Some(VirtualKeyCode::Insert),
-        winuser::VK_DELETE => Some(VirtualKeyCode::Delete),
-        //winuser::VK_HELP => Some(VirtualKeyCode::Help),
-        0x30 => Some(VirtualKeyCode::Key0),
-        0x31 => Some(VirtualKeyCode::Key1),
-        0x32 => Some(VirtualKeyCode::Key2),
-        0x33 => Some(VirtualKeyCode::Key3),
-        0x34 => Some(VirtualKeyCode::Key4),
-        0x35 => Some(VirtualKeyCode::Key5),
-        0x36 => Some(VirtualKeyCode::Key6),
-        0x37 => Some(VirtualKeyCode::Key7),
-        0x38 => Some(VirtualKeyCode::Key8),
-        0x39 => Some(VirtualKeyCode::Key9),
-        0x41 => Some(VirtualKeyCode::A),
-        0x42 => Some(VirtualKeyCode::B),
-        0x43 => Some(VirtualKeyCode::C),
-        0x44 => Some(VirtualKeyCode::D),
-        0x45 => Some(VirtualKeyCode::E),
-        0x46 => Some(VirtualKeyCode::F),
-        0x47 => Some(VirtualKeyCode::G),
-        0x48 => Some(VirtualKeyCode::H),
-        0x49 => Some(VirtualKeyCode::I),
-        0x4A => Some(VirtualKeyCode::J),
-        0x4B => Some(VirtualKeyCode::K),
-        0x4C => Some(VirtualKeyCode::L),
-        0x4D => Some(VirtualKeyCode::M),
-        0x4E => Some(VirtualKeyCode::N),
-        0x4F => Some(VirtualKeyCode::O),
-        0x50 => Some(VirtualKeyCode::P),
-        0x51 => Some(VirtualKeyCode::Q),
-        0x52 => Some(VirtualKeyCode::R),
-        0x53 => Some(VirtualKeyCode::S),
-        0x54 => Some(VirtualKeyCode::T),
-        0x55 => Some(VirtualKeyCode::U),
-        0x56 => Some(VirtualKeyCode::V),
-        0x57 => Some(VirtualKeyCode::W),
-        0x58 => Some(VirtualKeyCode::X),
-        0x59 => Some(VirtualKeyCode::Y),
-        0x5A => Some(VirtualKeyCode::Z),
-        //winuser::VK_LWIN => Some(VirtualKeyCode::Lwin),
-        //winuser::VK_RWIN => Some(VirtualKeyCode::Rwin),
-        winuser::VK_APPS => Some(VirtualKeyCode::Apps),
-        winuser::VK_SLEEP => Some(VirtualKeyCode::Sleep),
-        winuser::VK_NUMPAD0 => Some(VirtualKeyCode::Numpad0),
-        winuser::VK_NUMPAD1 => Some(VirtualKeyCode::Numpad1),
-        winuser::VK_NUMPAD2 => Some(VirtualKeyCode::Numpad2),
-        winuser::VK_NUMPAD3 => Some(VirtualKeyCode::Numpad3),
-        winuser::VK_NUMPAD4 => Some(VirtualKeyCode::Numpad4),
-        winuser::VK_NUMPAD5 => Some(VirtualKeyCode::Numpad5),
-        winuser::VK_NUMPAD6 => Some(VirtualKeyCode::Numpad6),
-        winuser::VK_NUMPAD7 => Some(VirtualKeyCode::Numpad7),
-        winuser::VK_NUMPAD8 => Some(VirtualKeyCode::Numpad8),
-        winuser::VK_NUMPAD9 => Some(VirtualKeyCode::Numpad9),
-        winuser::VK_MULTIPLY => Some(VirtualKeyCode::Multiply),
-        winuser::VK_ADD => Some(VirtualKeyCode::Add),
-        //winuser::VK_SEPARATOR => Some(VirtualKeyCode::Separator),
-        winuser::VK_SUBTRACT => Some(VirtualKeyCode::Subtract),
-        winuser::VK_DECIMAL => Some(VirtualKeyCode::Decimal),
-        winuser::VK_DIVIDE => Some(VirtualKeyCode::Divide),
-        winuser::VK_F1 => Some(VirtualKeyCode::F1),
-        winuser::VK_F2 => Some(VirtualKeyCode::F2),
-        winuser::VK_F3 => Some(VirtualKeyCode::F3),
-        winuser::VK_F4 => Some(VirtualKeyCode::F4),
-        winuser::VK_F5 => Some(VirtualKeyCode::F5),
-        winuser::VK_F6 => Some(VirtualKeyCode::F6),
-        winuser::VK_F7 => Some(VirtualKeyCode::F7),
-        winuser::VK_F8 => Some(VirtualKeyCode::F8),
-        winuser::VK_F9 => Some(VirtualKeyCode::F9),
-        winuser::VK_F10 => Some(VirtualKeyCode::F10),
-        winuser::VK_F11 => Some(VirtualKeyCode::F11),
-        winuser::VK_F12 => Some(VirtualKeyCode::F12),
-        winuser::VK_F13 => Some(VirtualKeyCode::F13),
-        winuser::VK_F14 => Some(VirtualKeyCode::F14),
-        winuser::VK_F15 => Some(VirtualKeyCode::F15),
-        winuser::VK_F16 => Some(VirtualKeyCode::F16),
-        winuser::VK_F17 => Some(VirtualKeyCode::F17),
-        winuser::VK_F18 => Some(VirtualKeyCode::F18),
-        winuser::VK_F19 => Some(VirtualKeyCode::F19),
-        winuser::VK_F20 => Some(VirtualKeyCode::F20),
-        winuser::VK_F21 => Some(VirtualKeyCode::F21),
-        winuser::VK_F22 => Some(VirtualKeyCode::F22),
-        winuser::VK_F23 => Some(VirtualKeyCode::F23),
-        winuser::VK_F24 => Some(VirtualKeyCode::F24),
-        winuser::VK_NUMLOCK => Some(VirtualKeyCode::Numlock),
-        winuser::VK_SCROLL => Some(VirtualKeyCode::Scroll),
-        winuser::VK_BROWSER_BACK => Some(VirtualKeyCode::NavigateBackward),
-        winuser::VK_BROWSER_FORWARD => Some(VirtualKeyCode::NavigateForward),
-        winuser::VK_BROWSER_REFRESH => Some(VirtualKeyCode::WebRefresh),
-        winuser::VK_BROWSER_STOP => Some(VirtualKeyCode::WebStop),
-        winuser::VK_BROWSER_SEARCH => Some(VirtualKeyCode::WebSearch),
-        winuser::VK_BROWSER_FAVORITES => Some(VirtualKeyCode::WebFavorites),
-        winuser::VK_BROWSER_HOME => Some(VirtualKeyCode::WebHome),
-        winuser::VK_VOLUME_MUTE => Some(VirtualKeyCode::Mute),
-        winuser::VK_VOLUME_DOWN => Some(VirtualKeyCode::VolumeDown),
-        winuser::VK_VOLUME_UP => Some(VirtualKeyCode::VolumeUp),
-        winuser::VK_MEDIA_NEXT_TRACK => Some(VirtualKeyCode::NextTrack),
-        winuser::VK_MEDIA_PREV_TRACK => Some(VirtualKeyCode::PrevTrack),
-        winuser::VK_MEDIA_STOP => Some(VirtualKeyCode::MediaStop),
-        winuser::VK_MEDIA_PLAY_PAUSE => Some(VirtualKeyCode::PlayPause),
-        winuser::VK_LAUNCH_MAIL => Some(VirtualKeyCode::Mail),
-        winuser::VK_LAUNCH_MEDIA_SELECT => Some(VirtualKeyCode::MediaSelect),
-        /*winuser::VK_LAUNCH_APP1 => Some(VirtualKeyCode::Launch_app1),
-        winuser::VK_LAUNCH_APP2 => Some(VirtualKeyCode::Launch_app2),*/
-        winuser::VK_OEM_PLUS => Some(VirtualKeyCode::Equals),
-        winuser::VK_OEM_COMMA => Some(VirtualKeyCode::Comma),
-        winuser::VK_OEM_MINUS => Some(VirtualKeyCode::Minus),
-        winuser::VK_OEM_PERIOD => Some(VirtualKeyCode::Period),
-        winuser::VK_OEM_1 => map_text_keys(vkey),
-        winuser::VK_OEM_2 => map_text_keys(vkey),
-        winuser::VK_OEM_3 => map_text_keys(vkey),
-        winuser::VK_OEM_4 => map_text_keys(vkey),
-        winuser::VK_OEM_5 => map_text_keys(vkey),
-        winuser::VK_OEM_6 => map_text_keys(vkey),
-        winuser::VK_OEM_7 => map_text_keys(vkey),
-        /*winuser::VK_OEM_8 => Some(VirtualKeyCode::Oem_8), */
-        winuser::VK_OEM_102 => Some(VirtualKeyCode::OEM102),
-        /*winuser::VK_PROCESSKEY => Some(VirtualKeyCode::Processkey),
-        winuser::VK_PACKET => Some(VirtualKeyCode::Packet),
-        winuser::VK_ATTN => Some(VirtualKeyCode::Attn),
-        winuser::VK_CRSEL => Some(VirtualKeyCode::Crsel),
-        winuser::VK_EXSEL => Some(VirtualKeyCode::Exsel),
-        winuser::VK_EREOF => Some(VirtualKeyCode::Ereof),
-        winuser::VK_PLAY => Some(VirtualKeyCode::Play),
-        winuser::VK_ZOOM => Some(VirtualKeyCode::Zoom),
-        winuser::VK_NONAME => Some(VirtualKeyCode::Noname),
-        winuser::VK_PA1 => Some(VirtualKeyCode::Pa1),
-        winuser::VK_OEM_CLEAR => Some(VirtualKeyCode::Oem_clear),*/
-        _ => None
+pub struct MappedKey {
+    pub vkey: c_int,
+    pub scancode: UINT,
+    pub extended: bool,
+    pub physical: Option<PhysicalKey>,
+    pub logical: Option<LogicalKey>,
+}
+
+// Keys that are mapped the same way in PhysicalKey and LogicalKey.
+enum CommonKey {
+    Edit(EditKey),
+    Command(CommandKey),
+    Function(FunctionKey),
+    Navigation(NavigationKey),
+    /// Handles the non-numeric/decimal numpad keys
+    Numpad(NumpadKey),
+    Modifier(ModifierKey),
+    Media(MediaKey),
+}
+
+impl CommonKey {
+    fn from_raw(vkey: c_int, extended: bool) -> Option<CommonKey> {
+        use self::{
+            CommonKey::*,
+            EditKey::*,
+            CommandKey::*,
+            FunctionKey::*,
+            NavigationKey::*,
+            NumpadKey::*,
+            ModifierKey::*,
+            MediaKey::*,
+        };
+        // VK_* codes are documented here https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
+        match vkey {
+            winuser::VK_BACK => Some(Edit(Backspace)),
+            winuser::VK_TAB => Some(Edit(Tab)),
+            winuser::VK_RETURN if !extended => Some(Edit(EnterLeft)),
+            winuser::VK_RETURN if extended => Some(Edit(EnterRight)),
+            winuser::VK_LSHIFT => Some(Modifier(ShiftLeft)),
+            winuser::VK_RSHIFT => Some(Modifier(ShiftRight)),
+            winuser::VK_LCONTROL => Some(Modifier(ControlLeft)),
+            winuser::VK_RCONTROL => Some(Modifier(ControlRight)),
+            winuser::VK_LMENU => Some(Modifier(AltLeft)),
+            // AltGr?
+            winuser::VK_RMENU => Some(Modifier(AltRight)),
+            winuser::VK_PAUSE => Some(Command(PauseBreak)),
+            winuser::VK_CAPITAL => Some(Modifier(CapsLock)),
+            // winuser::VK_KANA => None,
+            //winuser::VK_JUNJA => Some(VirtualKeyCode::Junja),
+            //winuser::VK_FINAL => Some(VirtualKeyCode::Final),
+            // winuser::VK_KANJI => Some(VirtualKeyCode::Kanji),
+            winuser::VK_ESCAPE => Some(Command(Escape)),
+            // VK_HANGUL and VK_HANJA are rolled in Convert/NonConvert, for simplicity. We may want
+            // to rename those keys to more accurately expose that it does that.
+            winuser::VK_HANGUL   |
+            winuser::VK_CONVERT => Some(Command(Convert)),
+            winuser::VK_HANJA       |
+            winuser::VK_NONCONVERT => Some(Command(NonConvert)),
+            winuser::VK_MODECHANGE => Some(Command(IMEMode)),
+            winuser::VK_SPACE => Some(Edit(Space)),
+            winuser::VK_PRIOR if extended => Some(Navigation(PageUp)),
+            winuser::VK_NEXT if extended => Some(Navigation(PageDown)),
+            winuser::VK_END if extended => Some(Navigation(End)),
+            winuser::VK_HOME if extended => Some(Navigation(Home)),
+            winuser::VK_LEFT if extended => Some(Navigation(Left)),
+            winuser::VK_UP if extended => Some(Navigation(Up)),
+            winuser::VK_RIGHT if extended => Some(Navigation(Right)),
+            winuser::VK_DOWN if extended => Some(Navigation(Down)),
+            winuser::VK_SNAPSHOT => Some(Command(PrintScreen)),
+            winuser::VK_INSERT if extended => Some(Edit(Insert)),
+            winuser::VK_DELETE if extended => Some(Edit(Delete)),
+            winuser::VK_LWIN => Some(Modifier(MetaLeft)),
+            winuser::VK_RWIN => Some(Modifier(MetaRight)),
+            winuser::VK_APPS => Some(Command(Menu)),
+            winuser::VK_MULTIPLY => Some(Numpad(Multiply)),
+            winuser::VK_ADD => Some(Numpad(Add)),
+            winuser::VK_SUBTRACT => Some(Numpad(Subtract)),
+            winuser::VK_DECIMAL => Some(Numpad(Period)),
+            winuser::VK_DIVIDE => Some(Numpad(Divide)),
+            winuser::VK_NUMPAD0 => Some(Numpad(Num0)),
+            winuser::VK_NUMPAD1 => Some(Numpad(Num1)),
+            winuser::VK_NUMPAD2 => Some(Numpad(Num2)),
+            winuser::VK_NUMPAD3 => Some(Numpad(Num3)),
+            winuser::VK_NUMPAD4 => Some(Numpad(Num4)),
+            winuser::VK_NUMPAD5 => Some(Numpad(Num5)),
+            winuser::VK_NUMPAD6 => Some(Numpad(Num6)),
+            winuser::VK_NUMPAD7 => Some(Numpad(Num7)),
+            winuser::VK_NUMPAD8 => Some(Numpad(Num8)),
+            winuser::VK_NUMPAD9 => Some(Numpad(Num9)),
+            winuser::VK_F1 => Some(Function(F1)),
+            winuser::VK_F2 => Some(Function(F2)),
+            winuser::VK_F3 => Some(Function(F3)),
+            winuser::VK_F4 => Some(Function(F4)),
+            winuser::VK_F5 => Some(Function(F5)),
+            winuser::VK_F6 => Some(Function(F6)),
+            winuser::VK_F7 => Some(Function(F7)),
+            winuser::VK_F8 => Some(Function(F8)),
+            winuser::VK_F9 => Some(Function(F9)),
+            winuser::VK_F10 => Some(Function(F10)),
+            winuser::VK_F11 => Some(Function(F11)),
+            winuser::VK_F12 => Some(Function(F12)),
+            winuser::VK_F13 => Some(Function(F13)),
+            winuser::VK_F14 => Some(Function(F14)),
+            winuser::VK_F15 => Some(Function(F15)),
+            winuser::VK_F16 => Some(Function(F16)),
+            winuser::VK_F17 => Some(Function(F17)),
+            winuser::VK_F18 => Some(Function(F18)),
+            winuser::VK_F19 => Some(Function(F19)),
+            winuser::VK_F20 => Some(Function(F20)),
+            winuser::VK_F21 => Some(Function(F21)),
+            winuser::VK_F22 => Some(Function(F22)),
+            winuser::VK_F23 => Some(Function(F23)),
+            winuser::VK_F24 => Some(Function(F24)),
+            winuser::VK_NUMLOCK => Some(Modifier(NumLock)),
+            winuser::VK_SCROLL => Some(Modifier(ScrollLock)),
+            winuser::VK_MEDIA_NEXT_TRACK => Some(Media(TrackNext)),
+            winuser::VK_MEDIA_PREV_TRACK => Some(Media(TrackPrevious)),
+            winuser::VK_MEDIA_STOP => Some(Media(Stop)),
+            winuser::VK_MEDIA_PLAY_PAUSE => Some(Media(PlayPause)),
+            _ => None
+        }
     }
-    */
 }
 
-pub fn vkey_to_physical_key(vkey: c_int) -> Option<PhysicalKey> {
-    unimplemented!()
-}
-
-pub fn handle_extended_keys(vkey: c_int, mut scancode: UINT, extended: bool) -> Option<(c_int, UINT)> {
+pub fn handle_extended_keys(mut vkey: c_int, mut scancode: UINT, extended: bool) -> Option<MappedKey> {
     // Welcome to hell https://blog.molecular-matters.com/2011/09/05/properly-handling-keyboard-input/
-    let vkey = match vkey {
-        winuser::VK_SHIFT => unsafe { winuser::MapVirtualKeyA(
-            scancode,
-            winuser::MAPVK_VSC_TO_VK_EX,
-        ) as _ },
-        winuser::VK_CONTROL => if extended {
-            winuser::VK_RCONTROL
-        } else {
-            winuser::VK_LCONTROL
+
+    match (vkey, scancode, extended) {
+        (winuser::VK_SHIFT, _, _) => {
+            vkey = unsafe {
+                winuser::MapVirtualKeyA(
+                    scancode,
+                    winuser::MAPVK_VSC_TO_VK_EX,
+                ) as _
+            };
         },
-        winuser::VK_MENU => if extended {
-            winuser::VK_RMENU
-        } else {
-            winuser::VK_LMENU
+        (winuser::VK_CONTROL, _, true) => vkey = winuser::VK_RCONTROL,
+        (winuser::VK_CONTROL, _, false) => vkey = winuser::VK_LCONTROL,
+        (winuser::VK_MENU, _, true) => vkey = winuser::VK_RMENU,
+        (winuser::VK_MENU, _, false) => vkey = winuser::VK_LMENU,
+        (winuser::VK_NUMLOCK, _, _) => {
+            scancode = unsafe{ winuser::MapVirtualKeyA(vkey as _, winuser::MAPVK_VK_TO_VSC) } | 0x100;
         },
-        _ => match scancode {
-            // This is only triggered when using raw input. Without this check, we get two events whenever VK_PAUSE is
-            // pressed, the first one having scancode 0x1D but vkey VK_PAUSE...
-            0x1D if vkey == winuser::VK_PAUSE => return None,
-            // ...and the second having scancode 0x45 but an unmatched vkey!
-            0x45 => winuser::VK_PAUSE,
-            // VK_PAUSE and VK_SCROLL have the same scancode when using modifiers, alongside incorrect vkey values.
-            0x46 => {
-                if extended {
-                    scancode = 0x45;
-                    winuser::VK_PAUSE
-                } else {
-                    winuser::VK_SCROLL
-                }
-            },
-            _ => vkey,
+
+        // This is only triggered when using raw input. Without this check, we get two events whenever VK_PAUSE is
+        // pressed, the first one having scancode 0x1D but vkey VK_PAUSE...
+        (winuser::VK_PAUSE, 0x1D, _) => return None,
+        // ...and the second having scancode 0x45 but an unmatched vkey!
+        (_, 0x45, _) => vkey = winuser::VK_PAUSE,
+        // VK_PAUSE and VK_SCROLL have the same scancode when using modifiers, alongside incorrect vkey values.
+        (_, 0x46, true) => {
+            scancode = 0x45;
+            vkey = winuser::VK_PAUSE
         },
+        (_, 0x46, false) => {
+            vkey = winuser::VK_SCROLL;
+        },
+        _ => (),
     };
-    Some((vkey, scancode))
+
+    let common_key = CommonKey::from_raw(vkey, extended);
+    Some(MappedKey {
+        vkey,
+        scancode,
+        extended,
+        physical: match common_key {
+            Some(CommonKey::Edit(e)) => Some(PhysicalKey::Edit(e)),
+            Some(CommonKey::Command(e)) => Some(PhysicalKey::Command(e)),
+            Some(CommonKey::Function(e)) => Some(PhysicalKey::Function(e)),
+            Some(CommonKey::Navigation(e)) => Some(PhysicalKey::Navigation(e)),
+            Some(CommonKey::Numpad(e)) => Some(PhysicalKey::Numpad(e)),
+            Some(CommonKey::Modifier(e)) => Some(PhysicalKey::Modifier(e)),
+            Some(CommonKey::Media(e)) => Some(PhysicalKey::Media(e)),
+            None => {
+                use event::keyboard::{
+                    PhysicalKey::*,
+                    PhysicalAlphaNumKey::*,
+                    NumpadKey::*,
+                };
+
+                match scancode {
+                    0x29 => Some(AlphaNum(IntlGrave)),
+                    0x02 => Some(AlphaNum(Key1)),
+                    0x03 => Some(AlphaNum(Key2)),
+                    0x04 => Some(AlphaNum(Key3)),
+                    0x05 => Some(AlphaNum(Key4)),
+                    0x06 => Some(AlphaNum(Key5)),
+                    0x07 => Some(AlphaNum(Key6)),
+                    0x08 => Some(AlphaNum(Key7)),
+                    0x09 => Some(AlphaNum(Key8)),
+                    0x0A => Some(AlphaNum(Key9)),
+                    0x0B => Some(AlphaNum(Key0)),
+                    0x0C => Some(AlphaNum(IntlDash)),
+                    0x0D => Some(AlphaNum(IntlEquals)),
+                    0x7D => Some(AlphaNum(IntlYen)),
+                    0x10 => Some(AlphaNum(Q)),
+                    0x11 => Some(AlphaNum(W)),
+                    0x12 => Some(AlphaNum(E)),
+                    0x13 => Some(AlphaNum(R)),
+                    0x14 => Some(AlphaNum(T)),
+                    0x15 => Some(AlphaNum(Y)),
+                    0x16 => Some(AlphaNum(U)),
+                    0x17 => Some(AlphaNum(I)),
+                    0x18 => Some(AlphaNum(O)),
+                    0x19 => Some(AlphaNum(P)),
+                    0x1A => Some(AlphaNum(IntlLeftBracket)),
+                    0x1B => Some(AlphaNum(IntlRightBracket)),
+                    0x1E => Some(AlphaNum(A)),
+                    0x1F => Some(AlphaNum(S)),
+                    0x20 => Some(AlphaNum(D)),
+                    0x21 => Some(AlphaNum(F)),
+                    0x22 => Some(AlphaNum(G)),
+                    0x23 => Some(AlphaNum(H)),
+                    0x24 => Some(AlphaNum(J)),
+                    0x25 => Some(AlphaNum(K)),
+                    0x26 => Some(AlphaNum(L)),
+                    0x27 => Some(AlphaNum(IntlSemicolon)),
+                    0x28 => Some(AlphaNum(IntlApostrophe)),
+                    0x2B => Some(AlphaNum(IntlBackslashRight)),
+                    0x2C => Some(AlphaNum(Z)),
+                    0x2D => Some(AlphaNum(X)),
+                    0x2E => Some(AlphaNum(C)),
+                    0x2F => Some(AlphaNum(V)),
+                    0x30 => Some(AlphaNum(B)),
+                    0x31 => Some(AlphaNum(N)),
+                    0x32 => Some(AlphaNum(M)),
+                    0x33 => Some(AlphaNum(IntlComma)),
+                    0x34 => Some(AlphaNum(IntlPeriod)),
+                    0x35 => Some(AlphaNum(IntlSlash)),
+                    0x56 => Some(AlphaNum(IntlBackslashLeft)),
+                    0x73 => Some(AlphaNum(IntlRo)),
+                    _ => if extended {
+                        None
+                    } else {
+                        match vkey {
+                            winuser::VK_INSERT => Some(Numpad(Num0)),
+                            winuser::VK_END => Some(Numpad(Num1)),
+                            winuser::VK_DOWN => Some(Numpad(Num2)),
+                            winuser::VK_NEXT => Some(Numpad(Num3)),
+                            winuser::VK_LEFT => Some(Numpad(Num4)),
+                            winuser::VK_CLEAR => Some(Numpad(Num5)),
+                            winuser::VK_RIGHT => Some(Numpad(Num6)),
+                            winuser::VK_HOME => Some(Numpad(Num7)),
+                            winuser::VK_UP => Some(Numpad(Num8)),
+                            winuser::VK_PRIOR => Some(Numpad(Num9)),
+                            winuser::VK_DELETE => Some(Numpad(Period)),
+                            _ => None
+                        }
+                    }
+                }
+            }
+        },
+        logical: match common_key {
+            Some(CommonKey::Edit(e)) => Some(LogicalKey::Edit(e)),
+            Some(CommonKey::Command(e)) => Some(LogicalKey::Command(e)),
+            Some(CommonKey::Function(e)) => Some(LogicalKey::Function(e)),
+            Some(CommonKey::Navigation(e)) => Some(LogicalKey::Navigation(e)),
+            Some(CommonKey::Numpad(e)) => Some(LogicalKey::Numpad(e)),
+            Some(CommonKey::Modifier(e)) => Some(LogicalKey::Modifier(e)),
+            Some(CommonKey::Media(e)) => Some(LogicalKey::Media(e)),
+            None => {
+                use event::keyboard::{
+                    LogicalKey::*,
+                    LogicalAlphaNumKey::*,
+                };
+
+                match vkey {
+                    0x30 => Some(AlphaNum(Key0)),
+                    0x31 => Some(AlphaNum(Key1)),
+                    0x32 => Some(AlphaNum(Key2)),
+                    0x33 => Some(AlphaNum(Key3)),
+                    0x34 => Some(AlphaNum(Key4)),
+                    0x35 => Some(AlphaNum(Key5)),
+                    0x36 => Some(AlphaNum(Key6)),
+                    0x37 => Some(AlphaNum(Key7)),
+                    0x38 => Some(AlphaNum(Key8)),
+                    0x39 => Some(AlphaNum(Key9)),
+                    0x41 => Some(AlphaNum(A)),
+                    0x42 => Some(AlphaNum(B)),
+                    0x43 => Some(AlphaNum(C)),
+                    0x44 => Some(AlphaNum(D)),
+                    0x45 => Some(AlphaNum(E)),
+                    0x46 => Some(AlphaNum(F)),
+                    0x47 => Some(AlphaNum(G)),
+                    0x48 => Some(AlphaNum(H)),
+                    0x49 => Some(AlphaNum(I)),
+                    0x4A => Some(AlphaNum(J)),
+                    0x4B => Some(AlphaNum(K)),
+                    0x4C => Some(AlphaNum(L)),
+                    0x4D => Some(AlphaNum(M)),
+                    0x4E => Some(AlphaNum(N)),
+                    0x4F => Some(AlphaNum(O)),
+                    0x50 => Some(AlphaNum(P)),
+                    0x51 => Some(AlphaNum(Q)),
+                    0x52 => Some(AlphaNum(R)),
+                    0x53 => Some(AlphaNum(S)),
+                    0x54 => Some(AlphaNum(T)),
+                    0x55 => Some(AlphaNum(U)),
+                    0x56 => Some(AlphaNum(V)),
+                    0x57 => Some(AlphaNum(W)),
+                    0x58 => Some(AlphaNum(X)),
+                    0x59 => Some(AlphaNum(Y)),
+                    0x5A => Some(AlphaNum(Z)),
+
+                    winuser::VK_OEM_3 => Some(AlphaNum(IntlGrave)),
+                    winuser::VK_OEM_MINUS => Some(AlphaNum(IntlDash)),
+                    winuser::VK_OEM_PLUS => Some(AlphaNum(IntlEquals)),
+                    winuser::VK_OEM_4 => Some(AlphaNum(IntlLeftBracket)),
+                    winuser::VK_OEM_6 => Some(AlphaNum(IntlRightBracket)),
+                    winuser::VK_OEM_1 => Some(AlphaNum(IntlSemicolon)),
+                    winuser::VK_OEM_7 => Some(AlphaNum(IntlApostrophe)),
+                    winuser::VK_OEM_5 => Some(AlphaNum(IntlBackslashRight)),
+                    winuser::VK_OEM_COMMA => Some(AlphaNum(IntlComma)),
+                    winuser::VK_OEM_PERIOD => Some(AlphaNum(IntlPeriod)),
+                    winuser::VK_OEM_2 => Some(AlphaNum(IntlSlash)),
+                    winuser::VK_OEM_102 => Some(AlphaNum(IntlRo)),
+                    _ => match scancode {
+                        0x7D => Some(AlphaNum(IntlYen)),
+                        0x56 => Some(AlphaNum(IntlBackslashLeft)),
+                        _ => None,
+                    }
+                }
+            }
+        }
+    })
 }
 
 /*
