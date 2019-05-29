@@ -42,7 +42,7 @@ use std::time::Instant;
 use std::path::PathBuf;
 
 use dpi::{LogicalPosition, LogicalSize};
-use self::keyboard::{InputEvent, ModifierState};
+use self::keyboard::{KeyboardEvent, ModifierState};
 use platform_impl;
 use window::WindowId;
 
@@ -60,7 +60,7 @@ pub enum Event<T> {
     /// Emitted when a mouse device has generated input.
     MouseEvent(device::MouseId, device::MouseEvent),
     /// Emitted when a keyboard device has generated input.
-    KeyboardEvent(device::KeyboardId, device::KeyboardEvent),
+    KeyEvent(device::KeyboardId, device::KeyEvent),
     HidEvent(device::HidId, device::HidEvent),
     /// Emitted when a gamepad/joystick device has generated input.
     GamepadEvent(device::GamepadHandle, device::GamepadEvent),
@@ -90,7 +90,7 @@ impl<T> Event<T> {
             UserEvent(_) => Err(self),
             WindowEvent{window_id, event} => Ok(WindowEvent{window_id, event}),
             MouseEvent(id, event) => Ok(MouseEvent(id, event)),
-            KeyboardEvent(id, event) => Ok(KeyboardEvent(id, event)),
+            KeyEvent(id, event) => Ok(KeyEvent(id, event)),
             HidEvent(id, event) => Ok(HidEvent(id, event)),
             GamepadEvent(id, event) => Ok(GamepadEvent(id, event)),
             NewEvents(cause) => Ok(NewEvents(cause)),
@@ -169,7 +169,7 @@ pub enum WindowEvent {
     Focused(bool),
 
     /// An event from the keyboard has been received.
-    KeyboardInput(InputEvent),
+    KeyboardInput(KeyboardEvent),
 
     /// The keymap has been changed, and any labels displayed to the user should be reloaded.
     KeymapChanged,
@@ -255,7 +255,7 @@ pub enum DeviceEvent {
     Motion { axis: AxisId, value: f64 },
 
     Button { button: ButtonId, state: ElementState },
-    Key(InputEvent),
+    Key(KeyboardEvent),
     Text { codepoint: char },
 }
 

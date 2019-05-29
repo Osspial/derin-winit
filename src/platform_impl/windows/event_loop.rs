@@ -48,8 +48,8 @@ use event_loop::{ControlFlow, EventLoopWindowTarget as RootELW, EventLoopClosed}
 use dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
 use event::{
     MouseButton, Touch, TouchPhase, StartCause, Event, WindowEvent,
-    device::{GamepadEvent, KeyboardEvent, HidEvent, MouseEvent},
-    keyboard::InputEvent,
+    device::{GamepadEvent, KeyEvent, HidEvent, MouseEvent},
+    keyboard::KeyboardEvent,
 };
 use platform_impl::platform::{
     MouseId, KeyboardId, HidId, GamepadHandle, WindowId,
@@ -1566,9 +1566,9 @@ unsafe extern "system" fn thread_event_target_callback<T>(
                             RawDeviceInfo::Keyboard(_) => {
                                 let keyboard_id = KeyboardId(handle);
                                 device = DeviceId::Keyboard(keyboard_id);
-                                event = Event::KeyboardEvent(
+                                event = Event::KeyEvent(
                                     keyboard_id.into(),
-                                    KeyboardEvent::Added,
+                                    KeyEvent::Added,
                                 );
                             },
                             RawDeviceInfo::Hid(_) => {
@@ -1609,9 +1609,9 @@ unsafe extern "system" fn thread_event_target_callback<T>(
                                 mouse_id.into(),
                                 MouseEvent::Removed,
                             ),
-                            DeviceId::Keyboard(keyboard_id) => Event::KeyboardEvent(
+                            DeviceId::Keyboard(keyboard_id) => Event::KeyEvent(
                                 keyboard_id.into(),
-                                KeyboardEvent::Removed,
+                                KeyEvent::Removed,
                             ),
                             DeviceId::Hid(hid_id) => Event::HidEvent(
                                 hid_id.into(),
@@ -1732,10 +1732,10 @@ unsafe extern "system" fn thread_event_target_callback<T>(
                             let virtual_keycode = vkey_to_logical_key(vkey);
 
                             subclass_input.send_event(
-                                Event::KeyboardEvent(
+                                Event::KeyEvent(
                                     keyboard_id,
                                     unimplemented!()
-                                    // KeyboardEvent::Input(KeyboardInput {
+                                    // KeyEvent::Input(KeyboardInput {
                                     //     scancode,
                                     //     state,
                                     //     virtual_keycode,

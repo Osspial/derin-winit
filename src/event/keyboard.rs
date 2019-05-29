@@ -1,12 +1,9 @@
-// TODO: SERDE EVERYTHING
-
-/// TODO: COME UP WITH REAL NAME. `InputEvent` IS VAGUE.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct InputEvent {
+pub struct KeyboardEvent {
     pub chara: Option<char>,
     pub composition: Option<CompositionEvent>,
-    pub keyboard: Option<KeyboardEvent>,
+    pub key: Option<KeyEvent>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -21,7 +18,7 @@ pub enum CompositionEvent {
 /// Describes a keyboard input event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct KeyboardEvent {
+pub struct KeyEvent {
     pub state: KeyState,
     pub key: Option<Key>,
 }
@@ -382,77 +379,77 @@ pub enum NumpadKey {
 /// Retrieves the given key's label in the host keymap.
 pub trait KeyLabel {
     /// Append the label to the end of the given string.
-    fn key_label_into(&self, string: &mut String);
+    fn write_key_label(&self, string: &mut String);
 
     fn key_label(&self) -> String {
         let mut string = String::new();
-        self.key_label_into(&mut string);
+        self.write_key_label(&mut string);
         string
     }
 }
 
 impl KeyLabel for PhysicalKey {
-    fn key_label_into(&self, _string: &mut String) {
+    fn write_key_label(&self, _string: &mut String) {
         unimplemented!()
     }
 }
 
 impl KeyLabel for LogicalKey {
-    fn key_label_into(&self, _string: &mut String) {
+    fn write_key_label(&self, _string: &mut String) {
         unimplemented!()
     }
 }
 
 impl KeyLabel for PhysicalAlphaNumKey {
-    fn key_label_into(&self, _string: &mut String) {
+    fn write_key_label(&self, _string: &mut String) {
         unimplemented!()
     }
 }
 
 impl KeyLabel for LogicalAlphaNumKey {
-    fn key_label_into(&self, _string: &mut String) {
+    fn write_key_label(&self, _string: &mut String) {
         unimplemented!()
     }
 }
 
 impl KeyLabel for EditKey {
-    fn key_label_into(&self, _string: &mut String) {
+    fn write_key_label(&self, _string: &mut String) {
         unimplemented!()
     }
 }
 
 impl KeyLabel for CommandKey {
-    fn key_label_into(&self, _string: &mut String) {
+    fn write_key_label(&self, _string: &mut String) {
         unimplemented!()
     }
 }
 
 impl KeyLabel for FunctionKey {
-    fn key_label_into(&self, _string: &mut String) {
+    fn write_key_label(&self, _string: &mut String) {
         unimplemented!()
     }
 }
 
 impl KeyLabel for MediaKey {
-    fn key_label_into(&self, _string: &mut String) {
+    fn write_key_label(&self, _string: &mut String) {
         unimplemented!()
     }
 }
 
 impl KeyLabel for ModifierKey {
-    fn key_label_into(&self, _string: &mut String) {
+    fn write_key_label(&self, _string: &mut String) {
         unimplemented!()
     }
 }
 
 impl KeyLabel for NavigationKey {
-    fn key_label_into(&self, _string: &mut String) {
+    fn write_key_label(&self, _string: &mut String) {
         unimplemented!()
     }
 }
 
 impl KeyLabel for NumpadKey {
-    fn key_label_into(&self, _string: &mut String) {
+    fn write_key_label(&self, _string: &mut String) {
         unimplemented!()
     }
 }
