@@ -219,8 +219,13 @@ impl WindowFlags {
         if self.contains(WindowFlags::NO_BACK_BUFFER) {
             style_ex |= WS_EX_NOREDIRECTIONBITMAP;
         }
-        // if self.contains(WindowFlags::TRANSPARENT) {
-        // }
+        // WS_EX_LAYERED needs to be set for transparent bordered windows, otherwise the
+        // SetLayeredWindowAttributes hack described in the window creation function won't
+        // work. Hoever, if it's set for transparent borderless windows, the window won't
+        // render, so we don't set it in that case.
+        if self.contains(WindowFlags::TRANSPARENT) && self.contains(WindowFlags::DECORATIONS) {
+            style_ex |= WS_EX_LAYERED;
+        }
         if self.contains(WindowFlags::CHILD) {
             style |= WS_CHILD; // This is incompatible with WS_POPUP if that gets added eventually.
         }
